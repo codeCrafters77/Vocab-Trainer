@@ -115,6 +115,47 @@
       padding: 4px 10px;
       border-radius: 20px;
     }
+    .review-badge {
+      font-family: "Space Mono", monospace;
+      font-size: 0.68rem;
+      color: var(--accent4);
+      background: rgba(247,151,30,0.1);
+      border: 1px solid rgba(247,151,30,0.3);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    /* Review transition modal */
+    .review-modal-box {
+      background: var(--surface);
+      border: 1px solid rgba(247,151,30,0.4);
+      border-radius: 16px;
+      padding: 28px 24px;
+      max-width: 340px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(247,151,30,0.08);
+      animation: pop 0.2s ease forwards;
+      text-align: center;
+    }
+    .review-modal-icon { font-size: 2.4rem; margin-bottom: 12px; }
+    .review-modal-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+    .review-modal-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.6; font-family: "Space Mono", monospace; margin-bottom: 20px; }
+    .review-count-pill {
+      display: inline-block;
+      background: rgba(247,151,30,0.15);
+      border: 1px solid rgba(247,151,30,0.4);
+      color: var(--accent4);
+      font-family: "Space Mono", monospace;
+      font-size: 1.6rem;
+      font-weight: 700;
+      padding: 12px 28px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    .review-count-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+    .btn-start-review { background: var(--accent4); color: white; border: none; width: 100%; margin-bottom: 8px; }
+    .btn-start-review:hover { background: #ffaa3d; transform: translateY(-1px); }
+    .btn-skip-review { background: none; border: 1px solid var(--border); color: var(--muted); width: 100%; }
+    .btn-skip-review:hover { border-color: var(--muted); color: var(--text); }
     .toggle-wrap { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: var(--muted); font-family: "Space Mono", monospace; cursor: pointer; }
     .toggle { position: relative; width: 36px; height: 20px; }
     .toggle input { opacity: 0; width: 0; height: 0; }
@@ -302,6 +343,7 @@
         <div class="top-bar">
           <div style="display:flex;align-items:center;gap:8px;">
             <div class="session-badge" id="sessionInfo">Sesi 1</div>
+            <div id="reviewBadge" class="review-badge hidden">&#128260; <span id="reviewCount">0</span> diulang</div>
             <div class="streak-wrap">
               <span>&#128293;</span>
               <span class="streak-num" id="streakNum">0</span>
@@ -350,6 +392,21 @@
   </div>
 </div>
 
+<!-- REVIEW TRANSITION MODAL -->
+<div id="reviewModal" class="modal-overlay hidden">
+  <div class="review-modal-box">
+    <div class="review-modal-icon">&#128260;</div>
+    <div class="review-modal-title">Sesi Selesai!</div>
+    <div class="review-modal-desc">Ada kata yang belum kamu kuasai. Yuk ulang sekarang supaya lebih mudah diingat.</div>
+    <div class="review-count-pill">
+      <div id="reviewModalCount">0</div>
+      <div class="review-count-label">kata untuk diulang</div>
+    </div>
+    <button class="btn btn-start-review" onclick="beginReview()">&#9654; Mulai Review</button>
+    <button class="btn btn-skip-review" onclick="skipReview()">Lewati, lanjut sesi baru</button>
+  </div>
+</div>
+
 <!-- RESET CONFIRM MODAL -->
 <div id="resetModal" class="modal-overlay hidden">
   <div class="modal-box">
@@ -387,6 +444,9 @@ var streak = 0;
 var usedWords = JSON.parse(localStorage.getItem('vt_usedWords') || '[]');
 var currentSession = parseInt(localStorage.getItem('vt_session')) || 1;
 
+var reviewWords = [];      // kata yang salah/give up di sesi ini
+var isReviewRound = false; // sedang di fase pengulangan atau tidak
+
 document.getElementById('statTotal').textContent = WORDS.length;
 document.getElementById('statDone').textContent = usedWords.length;
 document.getElementById('statSession').textContent = currentSession;
@@ -411,6 +471,8 @@ function goBack() {
 }
 
 function generateSession() {
+  isReviewRound = false;
+  reviewWords = [];
   var pool = WORDS.slice();
   if (mode === 1) {
     pool = pool.filter(function(w) { return usedWords.indexOf(w.en) === -1; });
@@ -422,6 +484,14 @@ function generateSession() {
   }
   shuffle(pool);
   sessionWords = pool.slice(0, 100);
+  index = 0;
+}
+
+function startReviewRound() {
+  isReviewRound = true;
+  sessionWords = reviewWords.slice();
+  shuffle(sessionWords);
+  reviewWords = [];
   index = 0;
 }
 
@@ -484,6 +554,10 @@ function submitAnswer() {
     input.classList.add('shake');
     setTimeout(function() { input.classList.remove('shake'); }, 300);
     showResult('wrong', '&#10007; Salah!', w);
+    if (mode === 1) {
+      reviewWords.push(w);
+      updateReviewBadge();
+    }
   }
 
   document.getElementById('streakNum').textContent = streak;
@@ -505,6 +579,8 @@ function giveUp() {
   document.getElementById('answer').className = 'answer-input giveup';
   var w = sessionWords[index];
   if (mode === 1) {
+    reviewWords.push(w);
+    updateReviewBadge();
     usedWords.push(w.en);
     localStorage.setItem('vt_usedWords', JSON.stringify(usedWords));
   }
@@ -554,6 +630,12 @@ function nextWord() {
   clearTimers();
   index++;
   if (index >= sessionWords.length) {
+    // Sesi utama selesai — cek apakah ada kata untuk diulang
+    if (mode === 1 && !isReviewRound && reviewWords.length > 0) {
+      showReviewTransition();
+      return;
+    }
+    // Sesi review selesai, atau tidak ada review — lanjut sesi baru
     if (mode === 1) {
       currentSession++;
       localStorage.setItem('vt_session', currentSession);
@@ -570,7 +652,8 @@ function updateProgress() {
 function updateSessionInfo() {
   if (mode === 1) {
     var total = Math.ceil(WORDS.length / 100);
-    document.getElementById('sessionInfo').textContent = 'Sesi ' + currentSession + ' / ' + total + ' \u2022 ' + (index+1) + ' / 100';
+    var prefix = isReviewRound ? '&#128260; Review' : 'Sesi ' + currentSession + ' / ' + total;
+    document.getElementById('sessionInfo').innerHTML = prefix + ' &bull; ' + (index+1) + ' / ' + sessionWords.length;
   } else {
     document.getElementById('sessionInfo').textContent = 'Kata ' + (index+1) + ' / 100';
   }
@@ -583,6 +666,41 @@ function showHint() {
   var hint = first[0] + first.slice(1).split('').map(function(c) { return c === ' ' ? ' ' : '_'; }).join('');
   document.getElementById('result').innerHTML =
     '<div class="result-answer">&#128161; Hint: <strong>' + hint + '</strong></div>';
+}
+
+function updateReviewBadge() {
+  var badge = document.getElementById('reviewBadge');
+  var count = document.getElementById('reviewCount');
+  if (mode === 1 && !isReviewRound && reviewWords.length > 0) {
+    badge.classList.remove('hidden');
+    count.textContent = reviewWords.length;
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function showReviewTransition() {
+  clearTimers();
+  document.getElementById('reviewModalCount').textContent = reviewWords.length;
+  document.getElementById('reviewModal').classList.remove('hidden');
+}
+
+function beginReview() {
+  document.getElementById('reviewModal').classList.add('hidden');
+  startReviewRound();
+  updateReviewBadge();
+  showWord();
+}
+
+function skipReview() {
+  document.getElementById('reviewModal').classList.add('hidden');
+  reviewWords = [];
+  if (mode === 1) {
+    currentSession++;
+    localStorage.setItem('vt_session', currentSession);
+  }
+  generateSession();
+  showWord();
 }
 
 function resetProgress() {
@@ -604,7 +722,10 @@ function confirmReset() {
   usedWords = [];
   currentSession = 1;
   streak = 0;
+  reviewWords = [];
+  isReviewRound = false;
   document.getElementById('streakNum').textContent = 0;
+  document.getElementById('reviewBadge').classList.add('hidden');
 
   // Close modal
   closeResetModal();
