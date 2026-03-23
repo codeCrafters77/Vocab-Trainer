@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vocab Trainer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface2: #1a1a24;
+      --border: #2a2a3a;
+      --accent: #6c63ff;
+      --accent2: #ff6584;
+      --accent3: #43e97b;
+      --accent4: #f7971e;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --correct: #43e97b;
+      --wrong: #ff4d6d;
+      --giveup: #f7971e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Syne", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 20% 20%, rgba(108,99,255,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 50% at 80% 80%, rgba(67,233,123,0.05) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .container { width: 100%; max-width: 480px; position: relative; z-index: 1; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 0 60px rgba(108,99,255,0.08), 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo { font-family: "Space Mono", monospace; font-weight: 700; font-size: 1rem; }
+    .logo span { color: var(--accent); }
+    .btn-back {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-family: "Space Mono", monospace;
+      transition: all 0.2s;
+    }
+    .btn-back:hover { color: var(--text); border-color: var(--muted); }
+    .mode-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      font-family: "Space Mono", monospace;
+    }
+    .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .mode-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 16px;
+      cursor: pointer;
+      transition: all 0.25s;
+      text-align: left;
+    }
+    .mode-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(108,99,255,0.15); }
+    .mode-card.mode-2:hover { border-color: var(--accent2); box-shadow: 0 8px 24px rgba(255,101,132,0.15); }
+    .mode-icon { font-size: 1.6rem; margin-bottom: 10px; display: block; }
+    .mode-name { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+    .mode-desc { font-size: 0.72rem; color: var(--muted); line-height: 1.4; font-family: "Space Mono", monospace; }
+    .stats-strip { display: flex; gap: 10px; }
+    .stat-box {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-num { font-family: "Space Mono", monospace; font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .session-badge {
+      font-family: "Space Mono", monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .review-badge {
+      font-family: "Space Mono", monospace;
+      font-size: 0.68rem;
+      color: var(--accent4);
+      background: rgba(247,151,30,0.1);
+      border: 1px solid rgba(247,151,30,0.3);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    /* Review transition modal */
+    .review-modal-box {
+      background: var(--surface);
+      border: 1px solid rgba(247,151,30,0.4);
+      border-radius: 16px;
+      padding: 28px 24px;
+      max-width: 340px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(247,151,30,0.08);
+      animation: pop 0.2s ease forwards;
+      text-align: center;
+    }
+    .review-modal-icon { font-size: 2.4rem; margin-bottom: 12px; }
+    .review-modal-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+    .review-modal-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.6; font-family: "Space Mono", monospace; margin-bottom: 20px; }
+    .review-count-pill {
+      display: inline-block;
+      background: rgba(247,151,30,0.15);
+      border: 1px solid rgba(247,151,30,0.4);
+      color: var(--accent4);
+      font-family: "Space Mono", monospace;
+      font-size: 1.6rem;
+      font-weight: 700;
+      padding: 12px 28px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    .review-count-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+    .btn-start-review { background: var(--accent4); color: white; border: none; width: 100%; margin-bottom: 8px; }
+    .btn-start-review:hover { background: #ffaa3d; transform: translateY(-1px); }
+    .btn-skip-review { background: none; border: 1px solid var(--border); color: var(--muted); width: 100%; }
+    .btn-skip-review:hover { border-color: var(--muted); color: var(--text); }
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; color: var(--muted); font-family: "Space Mono", monospace; cursor: pointer; }
+    .toggle { position: relative; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 20px; transition: 0.3s; cursor: pointer; }
+    .toggle-slider::before { content: ""; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: var(--muted); border-radius: 50%; transition: 0.3s; }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(16px); background: white; }
+    .progress-wrap { margin-bottom: 20px; }
+    .progress-track { background: var(--surface2); border-radius: 4px; height: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #a78bfa); border-radius: 4px; transition: width 0.4s ease; }
+    .word-display {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 20px;
+      text-align: center;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .word-display::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center top, rgba(108,99,255,0.06), transparent 70%);
+      pointer-events: none;
+    }
+    .word-label { font-family: "Space Mono", monospace; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .word-text { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; transition: font-size 0.15s ease; word-break: break-word; }
+    .input-wrap { position: relative; margin-bottom: 12px; }
+    .answer-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: var(--text);
+      font-size: 1rem;
+      font-family: "Syne", sans-serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .answer-input:focus { border-color: var(--accent); }
+    .answer-input.correct { border-color: var(--correct); background: rgba(67,233,123,0.05); }
+    .answer-input.wrong { border-color: var(--wrong); background: rgba(255,77,109,0.05); }
+    .answer-input.giveup { border-color: var(--giveup); background: rgba(247,151,30,0.05); }
+    #result { margin-bottom: 12px; min-height: 48px; }
+    .result-correct { color: var(--correct); }
+    .result-wrong { color: var(--wrong); }
+    .result-giveup { color: var(--giveup); }
+    .result-status { font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .result-answer { font-family: "Space Mono", monospace; font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+    .result-answer strong { color: var(--text); }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .btn {
+      padding: 13px 16px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-family: "Syne", sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-submit { background: var(--accent); color: white; }
+    .btn-submit:hover { background: #7c73ff; transform: translateY(-1px); }
+    .btn-giveup { background: var(--surface2); border: 1px solid var(--border); color: var(--giveup); }
+    .btn-giveup:hover { border-color: var(--giveup); transform: translateY(-1px); }
+    .btn-next { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); margin-bottom: 8px; }
+    .btn-next:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-next:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-reset { width: 100%; background: none; border: 1px solid rgba(255,77,109,0.3); color: var(--wrong); }
+    .btn-reset:hover { border-color: var(--wrong); background: rgba(255,77,109,0.05); }
+    .hint-wrap { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+    .btn-hint {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.72rem;
+      font-family: "Space Mono", monospace;
+      transition: all 0.2s;
+    }
+    .btn-hint:hover { color: var(--accent4); border-color: var(--accent4); }
+    .countdown-wrap { display: flex; align-items: center; gap: 6px; font-family: "Space Mono", monospace; font-size: 0.7rem; color: var(--muted); }
+    .countdown-bar { width: 60px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .countdown-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 100%; transition: width 1s linear; }
+    .streak-wrap { display: flex; align-items: center; gap: 4px; }
+    .streak-num { font-family: "Space Mono", monospace; font-size: 0.75rem; color: var(--accent4); }
+    .divider { height: 1px; background: var(--border); margin: 12px 0; }
+    .shortcut-hint { text-align: center; font-family: "Space Mono", monospace; font-size: 0.62rem; color: var(--muted); margin-top: 6px; }
+    .key { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; }
+    @keyframes pop { 0% { transform: scale(0.95); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .pop { animation: pop 0.2s ease forwards; }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+    .shake { animation: shake 0.3s ease; }
+    .hidden { display: none !important; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 340px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      animation: pop 0.2s ease forwards;
+    }
+    .modal-icon { font-size: 2rem; text-align: center; margin-bottom: 12px; }
+    .modal-title { font-size: 1rem; font-weight: 700; text-align: center; margin-bottom: 8px; }
+    .modal-desc { font-size: 0.78rem; color: var(--muted); text-align: center; line-height: 1.6; font-family: "Space Mono", monospace; margin-bottom: 20px; }
+    .modal-stats {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-around;
+    }
+    .modal-stat-item { text-align: center; }
+    .modal-stat-num { font-family: "Space Mono", monospace; font-size: 1.2rem; font-weight: 700; color: var(--wrong); }
+    .modal-stat-label { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+    .modal-btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn-cancel { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+    .btn-cancel:hover { border-color: var(--muted); }
+    .btn-confirm-reset { background: var(--wrong); color: white; border: none; }
+    .btn-confirm-reset:hover { background: #ff6b87; transform: translateY(-1px); }
+
+    /* Session picker */
+    #sessionPicker { padding: 0 24px 24px; }
+    .session-picker-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .session-picker-title { font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); font-family: "Space Mono", monospace; }
+    .session-picker-progress { font-size: 0.7rem; color: var(--muted); font-family: "Space Mono", monospace; }
+    .session-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      max-height: 340px;
+      overflow-y: auto;
+      padding-right: 2px;
+      margin-bottom: 16px;
+    }
+    .session-grid::-webkit-scrollbar { width: 4px; }
+    .session-grid::-webkit-scrollbar-track { background: var(--surface2); border-radius: 2px; }
+    .session-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .sess-btn {
+      aspect-ratio: 1;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-family: "Space Mono", monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      position: relative;
+      overflow: hidden;
+    }
+    .sess-btn.locked {
+      opacity: 0.35;
+      cursor: not-allowed;
+      color: var(--muted);
+    }
+    .sess-btn.done {
+      border-color: rgba(67,233,123,0.4);
+      background: rgba(67,233,123,0.06);
+      color: var(--correct);
+    }
+    .sess-btn.done:hover {
+      border-color: var(--correct);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(67,233,123,0.15);
+    }
+    .sess-btn.unlocked:not(.done) {
+      border-color: rgba(108,99,255,0.4);
+    }
+    .sess-btn.unlocked:not(.done):hover {
+      border-color: var(--accent);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(108,99,255,0.2);
+    }
+    .sess-btn.current-active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(108,99,255,0.25);
+    }
+    .sess-check { font-size: 0.6rem; color: var(--correct); }
+    .sess-lock { font-size: 0.65rem; }
+
+    /* ── Eval Modal ── */
+    .eval-modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+      animation: pop 0.2s ease forwards;
+      overflow: hidden;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .eval-header {
+      padding: 24px 24px 20px;
+      background: linear-gradient(135deg, rgba(108,99,255,0.12), rgba(67,233,123,0.06));
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    .eval-trophy { font-size: 2.4rem; margin-bottom: 8px; }
+    .eval-title { font-size: 1.1rem; font-weight: 800; margin-bottom: 2px; }
+    .eval-subtitle { font-size: 0.72rem; color: var(--muted); font-family: "Space Mono", monospace; }
+    .eval-pct {
+      font-family: "Space Mono", monospace;
+      font-size: 2.8rem;
+      font-weight: 700;
+      margin: 12px 0 0;
+      background: linear-gradient(135deg, var(--accent), var(--correct));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .eval-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+    .eval-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .eval-stat {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 6px;
+      text-align: center;
+    }
+    .eval-stat-num {
+      font-family: "Space Mono", monospace;
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .eval-stat-num.c-correct { color: var(--correct); }
+    .eval-stat-num.c-wrong   { color: var(--wrong); }
+    .eval-stat-num.c-giveup  { color: var(--giveup); }
+    .eval-stat-num.c-time    { color: var(--accent); }
+    .eval-stat-label { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-family: "Space Mono", monospace; }
+    /* Accordion */
+    .eval-accordion {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .eval-accordion-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      color: var(--text);
+      font-family: "Space Mono", monospace;
+      font-size: 0.75rem;
+      transition: background 0.2s;
+    }
+    .eval-accordion-toggle:hover { background: rgba(255,255,255,0.03); }
+    .eval-missed-list {
+      border-top: 1px solid var(--border);
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+    .eval-missed-list::-webkit-scrollbar { width: 4px; }
+    .eval-missed-list::-webkit-scrollbar-track { background: transparent; }
+    .eval-missed-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .eval-missed-row {
+      padding: 8px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .eval-missed-row:last-child { border-bottom: none; }
+    .eval-missed-en {
+      font-weight: 700;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .eval-missed-id {
+      font-family: "Space Mono", monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-align: right;
+    }
+    .eval-tag {
+      font-family: "Space Mono", monospace;
+      font-size: 0.55rem;
+      padding: 2px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .eval-tag-wrong  { background: rgba(255,77,109,0.15); color: var(--wrong); border: 1px solid rgba(255,77,109,0.3); }
+    .eval-tag-giveup { background: rgba(247,151,30,0.15); color: var(--giveup); border: 1px solid rgba(247,151,30,0.3); }
+    .eval-missed-empty { padding: 16px; text-align: center; font-size: 0.8rem; color: var(--muted); font-family: "Space Mono", monospace; }
+    .eval-footer { padding: 0 24px 24px; }
+    .btn-eval-done { width: 100%; background: var(--accent); color: white; border: none; }
+    .btn-eval-done:hover { background: #7c73ff; transform: translateY(-1px); }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <div class="logo">vocab<span>.</span>trainer</div>
+      <button id="backBtn" class="btn-back hidden" onclick="goBack()">&#8592; kembali</button>
+    </div>
+
+    <div id="modeSelect" style="padding:24px;">
+      <div class="mode-title">Pilih Mode Latihan</div>
+      <div class="mode-grid">
+        <div class="mode-card mode-1" onclick="startMode(1)">
+          <span class="mode-icon">&#128200;</span>
+          <div class="mode-name">Progress</div>
+          <div class="mode-desc">100 kata per sesi, lacak kemajuan belajar</div>
+        </div>
+        <div class="mode-card mode-2" onclick="startMode(2)">
+          <span class="mode-icon">&#8734;</span>
+          <div class="mode-name">Infinite</div>
+          <div class="mode-desc">Acak terus, tidak ada batas sesi</div>
+        </div>
+      </div>
+      <div class="stats-strip">
+        <div class="stat-box">
+          <div class="stat-num" id="statTotal">0</div>
+          <div class="stat-label">Total Kata</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="statDone">0</div>
+          <div class="stat-label">Sudah Dipelajari</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" id="statSession">1</div>
+          <div class="stat-label">Sesi Saat Ini</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- SESSION PICKER (mode 1 only) -->
+    <div id="sessionPicker" class="hidden">
+      <div class="session-picker-header">
+        <div class="session-picker-title">Pilih Sesi</div>
+        <div class="session-picker-progress"><span id="spDone">0</span> / <span id="spTotal">0</span> selesai</div>
+      </div>
+      <div class="session-grid" id="sessionGrid"></div>
+      <button class="btn btn-reset" onclick="resetProgress()" style="width:100%;">&#128465; Reset Progress</button>
+    </div>
+
+    <div id="app" class="hidden">
+      <div style="padding:20px 24px 24px;">
+        <div class="top-bar">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="session-badge" id="sessionInfo">Sesi 1</div>
+            <div id="reviewBadge" class="review-badge hidden">&#128260; <span id="reviewCount">0</span> diulang</div>
+            <div class="streak-wrap">
+              <span>&#128293;</span>
+              <span class="streak-num" id="streakNum">0</span>
+            </div>
+          </div>
+          <label class="toggle-wrap">
+            <span id="countdownWrap" class="countdown-wrap hidden">
+              <div class="countdown-bar"><div class="countdown-fill" id="countdownFill"></div></div>
+            </span>
+            <span>Auto</span>
+            <div class="toggle">
+              <input type="checkbox" id="autoNextToggle" onchange="onAutoToggle()" />
+              <div class="toggle-slider"></div>
+            </div>
+          </label>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div class="progress-fill" id="progressBar" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="word-display">
+          <div class="word-label">Terjemahkan ke Bahasa Indonesia</div>
+          <div class="word-text" id="word">&#8212;</div>
+        </div>
+        <div class="hint-wrap">
+          <button class="btn-hint" onclick="showHint()">&#128161; Hint</button>
+        </div>
+        <div class="input-wrap">
+          <input id="answer" class="answer-input" type="text" placeholder="Ketik artinya..." autocomplete="off" autocorrect="off" />
+        </div>
+        <div id="result"></div>
+        <div class="btn-row">
+          <button class="btn btn-submit" onclick="submitAnswer()">Submit</button>
+          <button class="btn btn-giveup" onclick="giveUp()">Menyerah</button>
+        </div>
+        <button id="nextBtn" class="btn btn-next" onclick="nextWord()" disabled>Kata Berikutnya &#8594;</button>
+        <div class="divider"></div>
+        <div class="shortcut-hint">
+          <span class="key">Enter</span> submit &nbsp;&#183;&nbsp;
+          <span class="key">Tab</span> / <span class="key">&#8594;</span> next
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EVAL MODAL -->
+<div id="evalModal" class="modal-overlay hidden">
+  <div class="eval-modal-box">
+    <div class="eval-header">
+      <div class="eval-trophy" id="evalTrophy">&#127942;</div>
+      <div class="eval-title">Sesi Selesai!</div>
+      <div class="eval-subtitle">Sesi <span id="evalSessionNum">1</span> &bull; Hasil akhir kamu</div>
+      <div class="eval-pct" id="evalPct">0%</div>
+    </div>
+    <div class="eval-body">
+      <div class="eval-stats-grid">
+        <div class="eval-stat">
+          <div class="eval-stat-num c-time" id="evalTime">0m 00s</div>
+          <div class="eval-stat-label">Durasi</div>
+        </div>
+        <div class="eval-stat">
+          <div class="eval-stat-num c-correct" id="evalCorrect">0</div>
+          <div class="eval-stat-label">Benar</div>
+        </div>
+        <div class="eval-stat">
+          <div class="eval-stat-num c-wrong" id="evalWrong">0</div>
+          <div class="eval-stat-label">Salah</div>
+        </div>
+        <div class="eval-stat">
+          <div class="eval-stat-num c-giveup" id="evalGiveup">0</div>
+          <div class="eval-stat-label">Menyerah</div>
+        </div>
+      </div>
+      <div class="eval-accordion">
+        <button class="eval-accordion-toggle" onclick="toggleEvalMissed()">
+          <span id="evalMissedToggleLabel">Lihat kata yang tidak dijawab benar</span>
+        </button>
+        <div id="evalMissedBody" class="hidden">
+          <div class="eval-missed-list" id="evalMissedList"></div>
+        </div>
+      </div>
+    </div>
+    <div class="eval-footer">
+      <button class="btn btn-eval-done" onclick="closeEvalModal()">Kembali ke Daftar Sesi</button>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEW TRANSITION MODAL -->
+<div id="reviewModal" class="modal-overlay hidden">
+  <div class="review-modal-box">
+    <div class="review-modal-icon">&#128260;</div>
+    <div class="review-modal-title">Sesi Selesai!</div>
+    <div class="review-modal-desc">Ada kata yang belum kamu kuasai. Yuk ulang sekarang supaya lebih mudah diingat.</div>
+    <div class="review-count-pill">
+      <div id="reviewModalCount">0</div>
+      <div class="review-count-label">kata untuk diulang</div>
+    </div>
+    <button class="btn btn-start-review" onclick="beginReview()">&#9654; Mulai Review</button>
+    <button class="btn btn-skip-review" onclick="skipReview()">Lewati, lanjut sesi baru</button>
+  </div>
+</div>
+
+<!-- RESET CONFIRM MODAL -->
+<div id="resetModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-icon">&#9888;&#65039;</div>
+    <div class="modal-title">Reset Semua Progress?</div>
+    <div class="modal-desc">Seluruh riwayat pembelajaran akan dihapus permanen dan tidak bisa dikembalikan.</div>
+    <div class="modal-stats">
+      <div class="modal-stat-item">
+        <div class="modal-stat-num" id="modalStatWords">0</div>
+        <div class="modal-stat-label">Kata Dipelajari</div>
+      </div>
+      <div class="modal-stat-item">
+        <div class="modal-stat-num" id="modalStatSession">0</div>
+        <div class="modal-stat-label">Sesi Selesai</div>
+      </div>
+    </div>
+    <div class="modal-btn-row">
+      <button class="btn btn-cancel" onclick="closeResetModal()">Batal</button>
+      <button class="btn btn-confirm-reset" onclick="confirmReset()">Ya, Reset!</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+var WORDS_ALL = [{"en": "April", "id": ["April"]}, {"en": "August", "id": ["Agustus"]}, {"en": "CD", "id": ["CD", "Cakram Padat"]}, {"en": "DVD", "id": ["DVD"]}, {"en": "December", "id": ["Desember"]}, {"en": "February", "id": ["Februari"]}, {"en": "Friday", "id": ["Jumat"]}, {"en": "I", "id": ["Saya", "Aku"]}, {"en": "IT", "id": ["TI", "Teknologi Informasi"]}, {"en": "January", "id": ["Januari"]}, {"en": "July", "id": ["Juli"]}, {"en": "June", "id": ["Juni"]}, {"en": "March", "id": ["Maret"]}, {"en": "May", "id": ["Mei"]}, {"en": "Monday", "id": ["Senin"]}, {"en": "November", "id": ["November"]}, {"en": "October", "id": ["Oktober"]}, {"en": "Saturday", "id": ["Sabtu"]}, {"en": "September", "id": ["September"]}, {"en": "Sunday", "id": ["Minggu", "Ahad"]}, {"en": "TV", "id": ["televisi", "TV"]}, {"en": "Thursday", "id": ["Kamis"]}, {"en": "Tuesday", "id": ["Selasa"]}, {"en": "Wednesday", "id": ["Rabu"]}, {"en": "abandon", "id": ["meninggalkan", "menelantarkan", "membuang"]}, {"en": "ability", "id": ["kemampuan", "kecakapan", "kesanggupan"]}, {"en": "able", "id": ["mampu", "sanggup", "bisa"]}, {"en": "about", "id": ["tentang", "mengenai", "kira-kira"]}, {"en": "above", "id": ["di atas"]}, {"en": "abroad", "id": ["di luar negeri", "ke luar negeri"]}, {"en": "absolute", "id": ["mutlak", "absolut", "pasti"]}, {"en": "absolutely", "id": ["mutlak", "benar-benar", "tentu saja"]}, {"en": "academic", "id": ["akademik", "akademis"]}, {"en": "accept", "id": ["menerima", "menyetujui"]}, {"en": "acceptable", "id": ["dapat diterima", "layak"]}, {"en": "access", "id": ["akses", "jalan masuk"]}, {"en": "accident", "id": ["kecelakaan", "kebetulan"]}, {"en": "accompany", "id": ["menemani", "menyertai", "mendampingi"]}, {"en": "account", "id": ["akun", "rekening", "laporan"]}, {"en": "accurate", "id": ["akurat", "teliti", "tepat"]}, {"en": "accuse", "id": ["menuduh", "menyalahkan"]}, {"en": "achieve", "id": ["mencapai", "meraih", "memperoleh"]}, {"en": "achievement", "id": ["prestasi", "pencapaian", "keberhasilan"]}, {"en": "acknowledge", "id": ["mengakui", "menyatakan", "membenarkan"]}, {"en": "acquire", "id": ["memperoleh", "mendapatkan", "mengakuisisi"]}, {"en": "across", "id": ["seberang", "melintasi", "di seluruh"]}, {"en": "act", "id": ["bertindak", "beraksi", "tindakan", "babak"]}, {"en": "action", "id": ["tindakan", "aksi", "perbuatan"]}, {"en": "active", "id": ["aktif", "giat"]}, {"en": "activity", "id": ["aktivitas", "kegiatan"]}, {"en": "actor", "id": ["aktor", "pemeran laki-laki"]}, {"en": "actress", "id": ["aktris", "pemeran perempuan"]}, {"en": "actual", "id": ["nyata", "sebenarnya", "sesungguhnya"]}, {"en": "actually", "id": ["sebenarnya", "sesungguhnya", "sebetulnya"]}, {"en": "ad", "id": ["iklan", "pariwara"]}, {"en": "adapt", "id": ["menyesuaikan", "menyadur", "beradaptasi"]}, {"en": "add", "id": ["menambah", "menambahkan", "menjumlahkan"]}, {"en": "addition", "id": ["tambahan", "penambahan", "penjumlahan"]}, {"en": "additional", "id": ["tambahan"]}, {"en": "address", "id": ["alamat", "pidato", "menyapa", "mengalamatkan"]}, {"en": "administration", "id": ["administrasi", "pemerintahan", "tata usaha"]}, {"en": "admire", "id": ["mengagumi", "memuji"]}, {"en": "admit", "id": ["mengakui", "menerima", "mengizinkan masuk"]}, {"en": "adopt", "id": ["mengadopsi", "mengangkat", "menerapkan"]}, {"en": "adult", "id": ["dewasa"]}, {"en": "advance", "id": ["kemajuan", "memajukan", "uang muka"]}, {"en": "advanced", "id": ["canggih", "lanjutan", "tingkat lanjut"]}, {"en": "advantage", "id": ["keuntungan", "kelebihan", "manfaat"]}, {"en": "adventure", "id": ["petualangan"]}, {"en": "advertise", "id": ["mengiklankan", "mempromosikan"]}, {"en": "advertisement", "id": ["iklan", "pariwara"]}, {"en": "advertising", "id": ["periklanan", "iklan"]}, {"en": "advice", "id": ["nasihat", "saran", "petunjuk"]}, {"en": "advise", "id": ["menasihati", "menyarankan", "memberi tahu"]}, {"en": "affair", "id": ["urusan", "perkara", "perselingkuhan"]}, {"en": "affect", "id": ["mempengaruhi", "mengenai", "mengharukan"]}, {"en": "afford", "id": ["mampu", "memberikan", "menghasilkan"]}, {"en": "afraid", "id": ["takut", "khawatir"]}, {"en": "after", "id": ["setelah", "sesudah", "lalu"]}, {"en": "afternoon", "id": ["sore", "siang"]}, {"en": "afterward", "id": ["kemudian", "sesudah itu", "setelah itu"]}, {"en": "again", "id": ["lagi", "kembali", "sekali lagi"]}, {"en": "against", "id": ["melawan", "menentang", "terhadap"]}, {"en": "age", "id": ["usia", "umur", "zaman"]}, {"en": "agency", "id": ["agen", "perwakilan", "biro", "instansi"]}, {"en": "agenda", "id": ["agenda", "acara", "rencana"]}, {"en": "agent", "id": ["agen", "wakil", "perantara"]}, {"en": "aggressive", "id": ["agresif", "galak"]}, {"en": "ago", "id": ["yang lalu"]}, {"en": "agree", "id": ["setuju", "sepakat", "sependapat"]}, {"en": "agreement", "id": ["persetujuan", "perjanjian", "kesepakatan"]}, {"en": "ahead", "id": ["di depan", "ke depan", "lebih dulu"]}, {"en": "aid", "id": ["bantuan", "pertolongan"]}, {"en": "aim", "id": ["tujuan", "sasaran", "maksud"]}, {"en": "air", "id": ["udara", "hawa"]}, {"en": "aircraft", "id": ["pesawat terbang", "pesawat udara"]}, {"en": "airline", "id": ["maskapai penerbangan"]}, {"en": "airport", "id": ["bandara", "bandar udara"]}, {"en": "alarm", "id": ["alarm", "peringatan", "weker"]}, {"en": "album", "id": ["album"]}, {"en": "alcohol", "id": ["alkohol"]}, {"en": "alcoholic", "id": ["beralkohol", "pecandu alkohol"]}, {"en": "alive", "id": ["hidup", "bernyawa"]}, {"en": "all", "id": ["semua", "seluruh", "segala"]}, {"en": "allow", "id": ["mengizinkan", "membiarkan", "memperbolehkan"]}, {"en": "almost", "id": ["hampir", "nyaris"]}, {"en": "alone", "id": ["sendiri", "sendirian"]}, {"en": "along", "id": ["sepanjang", "bersama"]}, {"en": "already", "id": ["sudah", "telah"]}, {"en": "also", "id": ["juga", "pula"]}, {"en": "alter", "id": ["mengubah", "merubah", "mengganti"]}, {"en": "alternative", "id": ["alternatif", "pilihan lain"]}, {"en": "although", "id": ["meskipun", "walaupun", "biarpun"]}, {"en": "always", "id": ["selalu", "senantiasa"]}, {"en": "amazed", "id": ["kagum", "takjub", "terheran-heran"]}, {"en": "amazing", "id": ["luar biasa", "menakjubkan", "hebat"]}, {"en": "ambition", "id": ["ambisi", "cita-cita"]}, {"en": "among", "id": ["di antara"]}, {"en": "amount", "id": ["jumlah", "total"]}, {"en": "analysis", "id": ["analisis", "analisa"]}, {"en": "analyze", "id": ["menganalisis", "meneliti", "mengurai"]}, {"en": "ancient", "id": ["kuno", "purbakala", "antik"]}, {"en": "and", "id": ["dan", "serta"]}, {"en": "anger", "id": ["kemarahan", "amarah", "murka"]}, {"en": "angle", "id": ["sudut", "segi"]}, {"en": "angry", "id": ["marah", "gusar", "sewot"]}, {"en": "animal", "id": ["hewan", "binatang", "satwa"]}, {"en": "ankle", "id": ["pergelangan kaki", "mata kaki"]}, {"en": "anniversary", "id": ["hari jadi", "ulang tahun", "peringatan"]}, {"en": "announce", "id": ["mengumumkan", "memaklumkan", "menyiarkan"]}, {"en": "announcement", "id": ["pengumuman", "pemberitahuan"]}, {"en": "annoy", "id": ["mengganggu", "menjengkelkan"]}, {"en": "annoyed", "id": ["kesal", "jengkel", "terganggu"]}, {"en": "annoying", "id": ["menjengkelkan", "menyebalkan"]}, {"en": "annual", "id": ["tahunan"]}, {"en": "another", "id": ["yang lain", "satu lagi"]}, {"en": "answer", "id": ["jawaban", "menjawab"]}, {"en": "anxious", "id": ["cemas", "gelisah", "khawatir"]}, {"en": "any", "id": ["apa pun", "mana pun"]}, {"en": "anybody", "id": ["siapa pun", "siapa saja"]}, {"en": "anymore", "id": ["lagi"]}, {"en": "anyone", "id": ["siapa saja", "siapa pun", "seseorang"]}, {"en": "anything", "id": ["apa saja", "apa pun", "sesuatu"]}, {"en": "anyway", "id": ["bagaimanapun", "omong-omong", "pokoknya"]}, {"en": "anywhere", "id": ["di mana saja", "ke mana saja", "di mana pun"]}, {"en": "apart", "id": ["terpisah", "berjauhan"]}, {"en": "apartment", "id": ["apartemen"]}, {"en": "apologize", "id": ["meminta maaf", "memohon maaf"]}, {"en": "app", "id": ["aplikasi"]}, {"en": "apparent", "id": ["nyata", "jelas", "tampak"]}, {"en": "apparently", "id": ["rupanya", "kelihatannya", "sepertinya"]}, {"en": "appeal", "id": ["daya tarik", "banding", "seruan"]}, {"en": "appear", "id": ["muncul", "tampak", "kelihatan"]}, {"en": "appearance", "id": ["penampilan", "perawakan", "kemunculan"]}, {"en": "apple", "id": ["apel"]}, {"en": "application", "id": ["aplikasi", "lamaran", "penerapan"]}, {"en": "apply", "id": ["melamar", "menerapkan", "berlaku"]}, {"en": "appointment", "id": ["janji temu", "penunjukan", "pengangkatan"]}, {"en": "appreciate", "id": ["menghargai", "mengapresiasi"]}, {"en": "approach", "id": ["pendekatan", "mendekati"]}, {"en": "appropriate", "id": ["sesuai", "tepat", "layak"]}, {"en": "approval", "id": ["persetujuan", "pengesahan", "restu"]}, {"en": "approve", "id": ["menyetujui", "mengesahkan", "merestui"]}, {"en": "approximately", "id": ["kira-kira", "kurang lebih", "sekitar"]}, {"en": "architect", "id": ["arsitek"]}, {"en": "architecture", "id": ["arsitektur"]}, {"en": "area", "id": ["daerah", "wilayah", "area", "luas"]}, {"en": "argue", "id": ["berdebat", "membantah", "berargumen"]}, {"en": "argument", "id": ["argumen", "perdebatan", "alasan"]}, {"en": "arise", "id": ["timbul", "muncul", "terjadi"]}, {"en": "arm", "id": ["lengan", "mempersenjatai"]}, {"en": "armed", "id": ["bersenjata"]}, {"en": "arms", "id": ["senjata", "lengan"]}, {"en": "army", "id": ["tentara", "angkatan darat"]}, {"en": "around", "id": ["sekitar", "sekeliling", "kira-kira"]}, {"en": "arrange", "id": ["mengatur", "menyusun", "merapikan"]}, {"en": "arrangement", "id": ["pengaturan", "susunan", "persiapan"]}, {"en": "arrest", "id": ["menangkap", "penangkapan"]}, {"en": "arrival", "id": ["kedatangan"]}, {"en": "arrive", "id": ["sampai", "tiba", "datang"]}, {"en": "art", "id": ["seni", "kesenian"]}, {"en": "article", "id": ["artikel", "pasal", "barang", "benda"]}, {"en": "artificial", "id": ["buatan", "tiruan", "sintetis"]}, {"en": "artist", "id": ["seniman", "artis"]}, {"en": "artistic", "id": ["artistik", "berjiwa seni"]}, {"en": "as", "id": ["sebagai", "seperti", "saat", "ketika", "karena"]}, {"en": "ashamed", "id": ["malu"]}, {"en": "aside", "id": ["ke samping", "di samping", "menyisih"]}, {"en": "ask", "id": ["bertanya", "meminta"]}, {"en": "asleep", "id": ["tidur", "terlelap"]}, {"en": "aspect", "id": ["aspek", "segi", "sudut pandang"]}, {"en": "assess", "id": ["menilai", "menaksir", "mengkaji"]}, {"en": "assessment", "id": ["penilaian", "penaksiran", "asesmen"]}, {"en": "assignment", "id": ["tugas", "penugasan", "penempatan"]}, {"en": "assist", "id": ["membantu", "menolong"]}, {"en": "assistant", "id": ["asisten", "pembantu", "ajudan"]}, {"en": "associate", "id": ["mengaitkan", "menghubungkan", "rekan", "sekutu"]}, {"en": "associated", "id": ["terkait", "berhubungan", "tergabung"]}, {"en": "association", "id": ["asosiasi", "perkumpulan", "hubungan", "persekutuan"]}, {"en": "assume", "id": ["mengasumsikan", "menganggap", "memikul", "menduga"]}, {"en": "at", "id": ["di", "pada"]}, {"en": "athlete", "id": ["atlet", "olahragawan"]}, {"en": "atmosphere", "id": ["atmosfer", "suasana"]}, {"en": "attach", "id": ["melampirkan", "menempelkan", "menyertakan"]}, {"en": "attack", "id": ["menyerang", "serangan"]}, {"en": "attempt", "id": ["mencoba", "usaha", "upaya"]}, {"en": "attend", "id": ["menghadiri", "mengikuti"]}, {"en": "attention", "id": ["perhatian"]}, {"en": "attitude", "id": ["sikap", "perilaku"]}, {"en": "attorney", "id": ["pengacara", "advokat"]}, {"en": "attract", "id": ["menarik", "memikat"]}, {"en": "attraction", "id": ["daya tarik", "atraksi"]}, {"en": "attractive", "id": ["menarik", "tampan", "cantik"]}, {"en": "audience", "id": ["penonton", "hadirin", "audiens"]}, {"en": "aunt", "id": ["bibi", "tante"]}, {"en": "author", "id": ["penulis", "pengarang"]}, {"en": "authority", "id": ["otoritas", "wewenang", "kekuasaan"]}, {"en": "automatic", "id": ["otomatis"]}, {"en": "automatically", "id": ["secara otomatis"]}, {"en": "auxiliary", "id": ["tambahan", "pembantu", "cadangan"]}, {"en": "available", "id": ["tersedia", "ada"]}, {"en": "average", "id": ["rata-rata", "biasa"]}, {"en": "avoid", "id": ["menghindari", "menjauhi"]}, {"en": "award", "id": ["penghargaan", "hadiah"]}, {"en": "aware", "id": ["sadar", "menyadari"]}, {"en": "away", "id": ["jauh", "pergi"]}, {"en": "awesome", "id": ["luar biasa", "mengagumkan"]}, {"en": "awful", "id": ["mengerikan", "buruk sekali"]}, {"en": "baby", "id": ["bayi", "sayang"]}, {"en": "back", "id": ["belakang", "punggung", "kembali"]}, {"en": "background", "id": ["latar belakang", "dasar"]}, {"en": "backward", "id": ["terbelakang", "ke belakang", "mundur"]}, {"en": "bacteria", "id": ["bakteri"]}, {"en": "bad", "id": ["buruk", "jelek", "jahat"]}, {"en": "badly", "id": ["sangat", "dengan buruk", "parah"]}, {"en": "bag", "id": ["tas", "kantong"]}, {"en": "bake", "id": ["memanggang", "membakar"]}, {"en": "balance", "id": ["keseimbangan", "saldo", "sisa"]}, {"en": "ball", "id": ["bola"]}, {"en": "ban", "id": ["larangan", "melarang"]}, {"en": "banana", "id": ["pisang"]}, {"en": "band", "id": ["pita", "grup musik", "pita gelombang"]}, {"en": "bar", "id": ["batang", "palang", "bar", "kedai minuman"]}, {"en": "barrier", "id": ["penghalang", "rintangan", "hambatan"]}, {"en": "base", "id": ["dasar", "pangkalan", "basis"]}, {"en": "baseball", "id": ["bisbol"]}, {"en": "based", "id": ["berdasarkan", "berbasis"]}, {"en": "basic", "id": ["dasar", "pokok", "asasi"]}, {"en": "basically", "id": ["pada dasarnya", "utamanya"]}, {"en": "basis", "id": ["dasar", "landasan", "basis"]}, {"en": "basketball", "id": ["basket", "bola basket"]}, {"en": "bath", "id": ["mandi"]}, {"en": "bathroom", "id": ["kamar mandi"]}, {"en": "battery", "id": ["baterai", "aki"]}, {"en": "battle", "id": ["pertempuran", "pertarungan", "peperangan"]}, {"en": "be", "id": ["menjadi", "adalah", "berada"]}, {"en": "beach", "id": ["pantai"]}, {"en": "bean", "id": ["kacang"]}, {"en": "beat", "id": ["memukul", "mengalahkan", "berdetak"]}, {"en": "beautiful", "id": ["indah", "cantik"]}, {"en": "beauty", "id": ["kecantikan", "keindahan"]}, {"en": "because", "id": ["karena", "sebab"]}, {"en": "become", "id": ["menjadi"]}, {"en": "bed", "id": ["tempat tidur", "ranjang"]}, {"en": "bedroom", "id": ["kamar tidur"]}, {"en": "bee", "id": ["lebah"]}, {"en": "beef", "id": ["daging sapi"]}, {"en": "beer", "id": ["bir"]}, {"en": "before", "id": ["sebelum"]}, {"en": "beg", "id": ["memohon", "mengemis"]}, {"en": "begin", "id": ["mulai", "memulai", "mengawali"]}, {"en": "beginning", "id": ["awal", "permulaan", "awal mula"]}, {"en": "behave", "id": ["bertingkah laku", "berkelakuan", "bersikap"]}, {"en": "behavior", "id": ["tingkah laku", "perilaku", "kelakuan"]}, {"en": "behind", "id": ["di belakang", "dibalik"]}, {"en": "being", "id": ["makhluk", "wujud", "keberadaan"]}, {"en": "belief", "id": ["kepercayaan", "keyakinan", "iman"]}, {"en": "believe", "id": ["percaya", "meyakini"]}, {"en": "bell", "id": ["bel", "lonceng"]}, {"en": "belong", "id": ["termasuk", "milik", "kepunyaan"]}, {"en": "below", "id": ["di bawah", "di bawah ini"]}, {"en": "belt", "id": ["sabuk", "ikat pinggang", "ban"]}, {"en": "bend", "id": ["membungkuk", "membengkokkan", "belokan", "tikungan"]}, {"en": "benefit", "id": ["manfaat", "keuntungan", "tunjangan"]}, {"en": "bent", "id": ["bengkok", "condong", "berbakat"]}, {"en": "best", "id": ["terbaik", "paling baik"]}, {"en": "bet", "id": ["bertaruh", "taruhan"]}, {"en": "better", "id": ["lebih baik"]}, {"en": "between", "id": ["di antara", "antara"]}, {"en": "beyond", "id": ["di luar", "melampaui", "seberang"]}, {"en": "bicycle", "id": ["sepeda"]}, {"en": "big", "id": ["besar"]}, {"en": "bike", "id": ["sepeda", "motor"]}, {"en": "bill", "id": ["tagihan", "paruh", "uang kertas", "rancangan undang-undang"]}, {"en": "biology", "id": ["biologi"]}, {"en": "bird", "id": ["burung"]}, {"en": "birth", "id": ["kelahiran"]}, {"en": "birthday", "id": ["hari ulang tahun"]}, {"en": "bit", "id": ["sedikit", "potongan"]}, {"en": "bite", "id": ["gigitan", "menggigit"]}, {"en": "bitter", "id": ["pahit", "getir"]}, {"en": "black", "id": ["hitam"]}, {"en": "blame", "id": ["menyalahkan", "menyalahi", "kesalahan"]}, {"en": "blank", "id": ["kosong", "hampa"]}, {"en": "blind", "id": ["buta"]}, {"en": "block", "id": ["blok", "balok", "menghalangi", "menghambat"]}, {"en": "blog", "id": ["blog"]}, {"en": "blond", "id": ["pirang"]}, {"en": "blood", "id": ["darah"]}, {"en": "blow", "id": ["meniup", "hembusan", "pukulan"]}, {"en": "blue", "id": ["biru"]}, {"en": "board", "id": ["papan", "dewan", "komite", "pengurus"]}, {"en": "boat", "id": ["kapal", "perahu"]}, {"en": "body", "id": ["tubuh", "badan", "jasad", "mayat"]}, {"en": "boil", "id": ["mendidih", "merebus", "bisul"]}, {"en": "bomb", "id": ["bom"]}, {"en": "bond", "id": ["ikatan", "hubungan", "jaminan", "obligasi"]}, {"en": "bone", "id": ["tulang"]}, {"en": "book", "id": ["buku", "kitab", "memesan"]}, {"en": "boot", "id": ["sepatu bot", "bagasi"]}, {"en": "border", "id": ["perbatasan", "batas", "tepi"]}, {"en": "bored", "id": ["bosan", "jemu"]}, {"en": "boring", "id": ["membosankan", "menjemukan"]}, {"en": "born", "id": ["lahir", "dilahirkan"]}, {"en": "borrow", "id": ["meminjam"]}, {"en": "boss", "id": ["bos", "atasan", "majikan"]}, {"en": "both", "id": ["keduanya", "dua-duanya"]}, {"en": "bother", "id": ["mengganggu", "merepotkan", "menyusahkan"]}, {"en": "bottle", "id": ["botol"]}, {"en": "bottom", "id": ["dasar", "bagian bawah"]}, {"en": "bowl", "id": ["mangkuk"]}, {"en": "box", "id": ["kotak", "peti"]}, {"en": "boy", "id": ["anak laki-laki"]}, {"en": "boyfriend", "id": ["pacar"]}, {"en": "brain", "id": ["otak"]}, {"en": "branch", "id": ["cabang", "dahan"]}, {"en": "brand", "id": ["merek"]}, {"en": "brave", "id": ["berani"]}, {"en": "bread", "id": ["roti"]}, {"en": "break", "id": ["istirahat", "mematahkan", "memecahkan"]}, {"en": "breakfast", "id": ["sarapan", "makan pagi"]}, {"en": "breast", "id": ["payudara", "dada"]}, {"en": "breath", "id": ["napas", "pernapasan"]}, {"en": "breathe", "id": ["bernapas", "menghirup"]}, {"en": "breathing", "id": ["pernapasan", "bernapas"]}, {"en": "bride", "id": ["pengantin wanita", "mempelai wanita"]}, {"en": "bridge", "id": ["jembatan"]}, {"en": "brief", "id": ["singkat", "ringkas", "pendek"]}, {"en": "bright", "id": ["terang", "cerah", "cerdas"]}, {"en": "brilliant", "id": ["cemerlang", "brilian", "sangat cerdas"]}, {"en": "bring", "id": ["membawa", "mendatangkan"]}, {"en": "broad", "id": ["luas", "lebar", "umum"]}, {"en": "broadcast", "id": ["siaran", "menyiarkan", "memancarkan"]}, {"en": "broken", "id": ["rusak", "patah", "pecah", "hancur"]}, {"en": "brother", "id": ["saudara laki-laki", "abang", "adik laki-laki"]}, {"en": "brown", "id": ["cokelat"]}, {"en": "brush", "id": ["sikat", "kuas", "menyikat"]}, {"en": "bubble", "id": ["gelembung", "buih"]}, {"en": "budget", "id": ["anggaran", "dana"]}, {"en": "build", "id": ["membangun", "mendirikan"]}, {"en": "building", "id": ["gedung", "bangunan"]}, {"en": "bullet", "id": ["peluru"]}, {"en": "bunch", "id": ["seikat", "karangan", "gerombolan", "sekelompok"]}, {"en": "burn", "id": ["membakar", "terbakar", "luka bakar"]}, {"en": "bury", "id": ["mengubur", "memakamkan"]}, {"en": "bus", "id": ["bus", "bis"]}, {"en": "bush", "id": ["semak", "belukar"]}, {"en": "business", "id": ["bisnis", "usaha", "urusan"]}, {"en": "businessman", "id": ["pengusaha", "pebisnis"]}, {"en": "busy", "id": ["sibuk"]}, {"en": "but", "id": ["tetapi", "namun", "melainkan"]}, {"en": "butter", "id": ["mentega"]}, {"en": "button", "id": ["tombol", "kancing"]}, {"en": "buy", "id": ["membeli", "beli"]}, {"en": "by", "id": ["oleh", "dengan", "dekat"]}, {"en": "cable", "id": ["kabel", "kawat"]}, {"en": "cafe", "id": ["kafe", "kedai kopi"]}, {"en": "cake", "id": ["kue"]}, {"en": "calculate", "id": ["menghitung", "mengkalkulasi"]}, {"en": "call", "id": ["memanggil", "menelepon", "panggilan"]}, {"en": "calm", "id": ["tenang", "kalem", "damai"]}, {"en": "camera", "id": ["kamera"]}, {"en": "camp", "id": ["perkemahan", "kamp", "kemah"]}, {"en": "campaign", "id": ["kampanye"]}, {"en": "camping", "id": ["berkemah", "kemping"]}, {"en": "campus", "id": ["kampus"]}, {"en": "cancel", "id": ["membatalkan", "batal"]}, {"en": "cancer", "id": ["kanker", "ketam"]}, {"en": "candidate", "id": ["kandidat", "calon"]}, {"en": "candy", "id": ["permen", "gula-gula"]}, {"en": "cannot", "id": ["tidak dapat", "tidak bisa"]}, {"en": "cap", "id": ["topi", "penutup", "batas"]}, {"en": "capable", "id": ["mampu", "sanggup", "cakap"]}, {"en": "capacity", "id": ["kapasitas", "daya tampung", "kemampuan"]}, {"en": "capital", "id": ["modal", "ibu kota", "kapital"]}, {"en": "captain", "id": ["kapten", "nakhoda", "pemimpin"]}, {"en": "capture", "id": ["menangkap", "penangkapan", "merebut"]}, {"en": "car", "id": ["mobil", "kereta"]}, {"en": "card", "id": ["kartu"]}, {"en": "care", "id": ["peduli", "perawatan", "perhatian"]}, {"en": "career", "id": ["karier", "pekerjaan"]}, {"en": "careful", "id": ["hati-hati", "cermat", "teliti"]}, {"en": "carefully", "id": ["dengan hati-hati", "secara teliti"]}, {"en": "careless", "id": ["ceroboh", "lalai", "tidak hati-hati"]}, {"en": "carpet", "id": ["karpet", "permadani"]}, {"en": "carrot", "id": ["wortel"]}, {"en": "carry", "id": ["membawa", "mengangkut"]}, {"en": "cartoon", "id": ["kartun"]}, {"en": "case", "id": ["kasus", "perkara", "kotak", "wadah"]}, {"en": "cash", "id": ["tunai", "uang tunai", "kas"]}, {"en": "cast", "id": ["pemeran", "pemain", "gips", "melemparkan"]}, {"en": "cat", "id": ["kucing"]}, {"en": "catch", "id": ["menangkap", "penangkapan"]}, {"en": "category", "id": ["kategori", "golongan"]}, {"en": "cause", "id": ["penyebab", "menyebabkan", "alasan"]}, {"en": "ceiling", "id": ["langit-langit", "plafon"]}, {"en": "celebrate", "id": ["merayakan"]}, {"en": "celebration", "id": ["perayaan"]}, {"en": "celebrity", "id": ["selebriti", "pesohor"]}, {"en": "cell", "id": ["sel"]}, {"en": "cent", "id": ["sen"]}, {"en": "center", "id": ["pusat", "tengah"]}, {"en": "central", "id": ["pusat", "sentral", "utama"]}, {"en": "century", "id": ["abad"]}, {"en": "ceremony", "id": ["upacara", "perayaan"]}, {"en": "certain", "id": ["tertentu", "yakin", "pasti"]}, {"en": "certainly", "id": ["tentu", "pasti", "tentu saja"]}, {"en": "chain", "id": ["rantai"]}, {"en": "chair", "id": ["kursi", "pimpinan"]}, {"en": "chairman", "id": ["ketua", "pimpinan"]}, {"en": "challenge", "id": ["tantangan", "tantang"]}, {"en": "champion", "id": ["juara", "pemenang", "pembela"]}, {"en": "chance", "id": ["kesempatan", "peluang", "kemungkinan"]}, {"en": "change", "id": ["perubahan", "uang kembalian", "mengubah", "ganti"]}, {"en": "channel", "id": ["saluran", "kanal"]}, {"en": "chapter", "id": ["bab", "bagian", "cabang"]}, {"en": "character", "id": ["karakter", "watak", "tokoh", "huruf"]}, {"en": "characteristic", "id": ["karakteristik", "ciri khas", "sifat"]}, {"en": "charge", "id": ["biaya", "tuduhan", "pengisian daya", "beban"]}, {"en": "charity", "id": ["amal", "sedekah", "derma"]}, {"en": "chart", "id": ["grafik", "bagan", "diagram"]}, {"en": "chat", "id": ["obrolan", "percakapan", "mengobrol"]}, {"en": "cheap", "id": ["murah", "murahan"]}, {"en": "cheat", "id": ["menipu", "menyontek", "curang"]}, {"en": "check", "id": ["memeriksa", "cek", "pemeriksaan"]}, {"en": "cheerful", "id": ["ceria", "riang", "gembira"]}, {"en": "cheese", "id": ["keju"]}, {"en": "chef", "id": ["koki", "kepala juru masak"]}, {"en": "chemical", "id": ["kimia", "bahan kimia"]}, {"en": "chemistry", "id": ["kimia", "kecocokan"]}, {"en": "chest", "id": ["dada", "peti"]}, {"en": "chicken", "id": ["ayam"]}, {"en": "chief", "id": ["kepala", "pemimpin", "utama"]}, {"en": "child", "id": ["anak"]}, {"en": "childhood", "id": ["masa kecil", "masa kanak-kanak"]}, {"en": "chip", "id": ["keripik", "keping", "chip"]}, {"en": "chocolate", "id": ["cokelat"]}, {"en": "choice", "id": ["pilihan"]}, {"en": "choose", "id": ["memilih"]}, {"en": "church", "id": ["gereja"]}, {"en": "cigarette", "id": ["rokok"]}, {"en": "circle", "id": ["lingkaran", "bundaran", "kalangan"]}, {"en": "circumstance", "id": ["keadaan", "situasi", "peristiwa"]}, {"en": "cite", "id": ["mengutip", "menyebutkan"]}, {"en": "citizen", "id": ["warga negara", "penduduk"]}, {"en": "city", "id": ["kota"]}, {"en": "civil", "id": ["sipil", "madani", "sopan"]}, {"en": "claim", "id": ["klaim", "menuntut", "menyatakan"]}, {"en": "class", "id": ["kelas", "golongan", "tingkatan"]}, {"en": "classic", "id": ["klasik"]}, {"en": "classical", "id": ["klasik"]}, {"en": "classroom", "id": ["ruang kelas", "kelas"]}, {"en": "clause", "id": ["klausa", "pasal", "ketentuan"]}, {"en": "clean", "id": ["bersih", "membersihkan"]}, {"en": "clear", "id": ["jelas", "jernih", "terang", "membersihkan"]}, {"en": "clearly", "id": ["dengan jelas", "secara jelas"]}, {"en": "clerk", "id": ["kerani", "juru tulis", "pramuniaga"]}, {"en": "clever", "id": ["pintar", "cerdik", "pandai"]}, {"en": "click", "id": ["klik", "mengeklik"]}, {"en": "client", "id": ["klien", "pelanggan"]}, {"en": "climate", "id": ["iklim"]}, {"en": "climb", "id": ["memanjat", "mendaki", "naik"]}, {"en": "clock", "id": ["jam", "arloji"]}, {"en": "closed", "id": ["tertutup", "tutup"]}, {"en": "closely", "id": ["dengan erat", "secara teliti", "dengan dekat"]}, {"en": "closet", "id": ["lemari", "lemari pakaian"]}, {"en": "cloth", "id": ["kain", "lap"]}, {"en": "clothes", "id": ["pakaian", "baju"]}, {"en": "clothing", "id": ["pakaian", "busana"]}, {"en": "cloud", "id": ["awan"]}, {"en": "club", "id": ["klub", "perkumpulan", "pentungan"]}, {"en": "clue", "id": ["petunjuk", "isyarat"]}, {"en": "coach", "id": ["pelatih", "bis"]}, {"en": "coal", "id": ["batu bara"]}, {"en": "coast", "id": ["pantai", "pesisir"]}, {"en": "coat", "id": ["mantel", "jas", "lapisan"]}, {"en": "code", "id": ["kode", "sandi"]}, {"en": "coffee", "id": ["kopi"]}, {"en": "coin", "id": ["koin", "uang logam"]}, {"en": "cold", "id": ["dingin", "pilek", "flu"]}, {"en": "collapse", "id": ["runtuh", "roboh", "pingsan", "kempis"]}, {"en": "colleague", "id": ["rekan kerja", "teman sejawat", "kolega"]}, {"en": "collect", "id": ["mengumpulkan", "memungut", "menagih"]}, {"en": "collection", "id": ["koleksi", "kumpulan", "pemungutan"]}, {"en": "college", "id": ["perguruan tinggi", "kampus", "sekolah tinggi"]}, {"en": "color", "id": ["warna", "mewarnai"]}, {"en": "colored", "id": ["berwarna", "berwarna-warni"]}, {"en": "column", "id": ["kolom", "tiang", "lajur"]}, {"en": "combination", "id": ["kombinasi", "gabungan", "perpaduan"]}, {"en": "combine", "id": ["menggabungkan", "memadukan", "mengombinasikan"]}, {"en": "come", "id": ["datang", "tiba"]}, {"en": "comedy", "id": ["komedi"]}, {"en": "comfort", "id": ["kenyamanan", "menghibur"]}, {"en": "comfortable", "id": ["nyaman", "enak"]}, {"en": "command", "id": ["perintah", "aba-aba"]}, {"en": "comment", "id": ["komentar", "ulasan"]}, {"en": "commercial", "id": ["komersial", "iklan"]}, {"en": "commission", "id": ["komisi", "mandat"]}, {"en": "commit", "id": ["melakukan", "berkomitmen"]}, {"en": "commitment", "id": ["komitmen", "janji"]}, {"en": "committee", "id": ["panitia", "komite"]}, {"en": "common", "id": ["umum", "biasa", "awam"]}, {"en": "commonly", "id": ["biasanya", "umumnya"]}, {"en": "communicate", "id": ["berkomunikasi", "menyampaikan", "berhubungan"]}, {"en": "communication", "id": ["komunikasi", "hubungan"]}, {"en": "community", "id": ["masyarakat", "komunitas"]}, {"en": "company", "id": ["perusahaan", "teman", "rombongan"]}, {"en": "compare", "id": ["membandingkan", "menyamakan"]}, {"en": "comparison", "id": ["perbandingan"]}, {"en": "compete", "id": ["bersaing", "berkompetisi", "berlomba"]}, {"en": "competition", "id": ["kompetisi", "persaingan", "lomba", "pertandingan"]}, {"en": "competitive", "id": ["kompetitif", "bersaing"]}, {"en": "competitor", "id": ["pesaing", "kompetitor", "kontestan"]}, {"en": "complain", "id": ["mengeluh", "komplain"]}, {"en": "complaint", "id": ["keluhan", "komplain", "aduan"]}, {"en": "complete", "id": ["lengkap", "selesai", "tuntas", "melengkapi"]}, {"en": "completely", "id": ["sepenuhnya", "sama sekali", "seluruhnya"]}, {"en": "complex", "id": ["kompleks", "rumit"]}, {"en": "complicated", "id": ["rumit", "pelik", "berbelit-belit"]}, {"en": "component", "id": ["komponen", "bagian", "unsur"]}, {"en": "computer", "id": ["komputer"]}, {"en": "concentrate", "id": ["berkonsentrasi", "memusatkan", "memekatkan"]}, {"en": "concentration", "id": ["konsentrasi", "pemusatan"]}, {"en": "concept", "id": ["konsep", "pengertian"]}, {"en": "concern", "id": ["kekhawatiran", "keprihatinan", "urusan"]}, {"en": "concerned", "id": ["khawatir", "prihatin", "peduli", "bersangkutan"]}, {"en": "concert", "id": ["konser", "pertunjukan musik"]}, {"en": "conclude", "id": ["menyimpulkan", "mengakhiri", "menutup"]}, {"en": "conclusion", "id": ["kesimpulan", "penutup"]}, {"en": "condition", "id": ["kondisi", "keadaan", "syarat"]}, {"en": "conduct", "id": ["perilaku", "tingkah laku", "mengadakan", "melakukan", "memimpin"]}, {"en": "conference", "id": ["konferensi", "rapat", "pertemuan"]}, {"en": "confidence", "id": ["kepercayaan diri", "keyakinan"]}, {"en": "confident", "id": ["percaya diri", "yakin"]}, {"en": "confirm", "id": ["mengonfirmasi", "menegaskan", "memastikan"]}, {"en": "conflict", "id": ["konflik", "pertentangan", "perselisihan"]}, {"en": "confuse", "id": ["membingungkan", "mengacaukan"]}, {"en": "confused", "id": ["bingung"]}, {"en": "confusing", "id": ["membingungkan"]}, {"en": "congress", "id": ["kongres"]}, {"en": "connect", "id": ["menghubungkan", "menyambungkan", "mengaitkan"]}, {"en": "connected", "id": ["terhubung", "tersambung", "berkaitan"]}, {"en": "connection", "id": ["hubungan", "koneksi", "sambungan", "kaitan"]}, {"en": "conscious", "id": ["sadar", "berkesadaran"]}, {"en": "consequence", "id": ["konsekuensi", "akibat"]}, {"en": "conservative", "id": ["konservatif", "kolot"]}, {"en": "consider", "id": ["mempertimbangkan", "menganggap", "memikirkan"]}, {"en": "consideration", "id": ["pertimbangan", "perhatian"]}, {"en": "consist", "id": ["terdiri", "terkandung"]}, {"en": "consistent", "id": ["konsisten", "taat asas", "selaras"]}, {"en": "constant", "id": ["konstan", "tetap", "terus-menerus"]}, {"en": "constantly", "id": ["terus-menerus", "selalu", "senantiasa"]}, {"en": "construct", "id": ["membangun", "menyusun", "mendirikan"]}, {"en": "construction", "id": ["konstruksi", "pembangunan", "struktur"]}, {"en": "consume", "id": ["mengonsumsi", "memakan", "menghabiskan"]}, {"en": "consumer", "id": ["konsumen", "pemakai"]}, {"en": "contact", "id": ["kontak", "hubungan", "menghubungi"]}, {"en": "contain", "id": ["berisi", "mengandung", "memuat"]}, {"en": "container", "id": ["wadah", "tempat", "kontainer"]}, {"en": "contemporary", "id": ["kontemporer", "sezaman", "masa kini"]}, {"en": "contest", "id": ["perlombaan", "kontes", "pertandingan", "sayembara"]}, {"en": "context", "id": ["konteks", "latar belakang"]}, {"en": "continent", "id": ["benua"]}, {"en": "continue", "id": ["melanjutkan", "meneruskan", "bersambung"]}, {"en": "continuous", "id": ["terus-menerus", "berkelanjutan", "sinambung"]}, {"en": "contract", "id": ["kontrak", "perjanjian", "menyusut"]}, {"en": "contrast", "id": ["kontras", "perbedaan", "pertentangan"]}, {"en": "contribute", "id": ["menyumbang", "berkontribusi"]}, {"en": "contribution", "id": ["kontribusi", "sumbangan", "andil"]}, {"en": "control", "id": ["kontrol", "kendali", "mengendalikan", "pengawasan"]}, {"en": "convenient", "id": ["praktis", "nyaman", "mudah"]}, {"en": "conversation", "id": ["percakapan", "obrolan"]}, {"en": "convert", "id": ["mengubah", "mengonversi", "bertobat"]}, {"en": "convince", "id": ["meyakinkan"]}, {"en": "convinced", "id": ["yakin", "terpujuk"]}, {"en": "cook", "id": ["memasak", "koki"]}, {"en": "cookie", "id": ["kue kering", "kukis"]}, {"en": "cooking", "id": ["masakan", "memasak"]}, {"en": "cool", "id": ["sejuk", "dingin", "keren"]}, {"en": "copy", "id": ["menyalin", "salinan", "fotokopi"]}, {"en": "core", "id": ["inti", "pusat"]}, {"en": "corn", "id": ["jagung"]}, {"en": "corner", "id": ["sudut", "pojok"]}, {"en": "corporate", "id": ["perusahaan", "korporat"]}, {"en": "correct", "id": ["benar", "tepat", "mengoreksi"]}, {"en": "correctly", "id": ["dengan benar", "dengan tepat"]}, {"en": "cost", "id": ["biaya", "harga"]}, {"en": "costume", "id": ["kostum", "pakaian"]}, {"en": "cotton", "id": ["kapas", "katun"]}, {"en": "council", "id": ["dewan", "majelis"]}, {"en": "count", "id": ["menghitung", "jumlah", "hitungan"]}, {"en": "country", "id": ["negara", "negeri"]}, {"en": "countryside", "id": ["pedesaan", "daerah pedalaman"]}, {"en": "county", "id": ["wilayah", "kabupaten"]}, {"en": "couple", "id": ["pasangan", "beberapa", "sepasang"]}, {"en": "courage", "id": ["keberanian", "keteguhan hati"]}, {"en": "course", "id": ["kursus", "mata kuliah", "arah", "jalur", "hidangan"]}, {"en": "court", "id": ["pengadilan", "lapangan", "istana"]}, {"en": "cousin", "id": ["sepupu"]}, {"en": "cover", "id": ["penutup", "sampul", "menutupi", "melapisi"]}, {"en": "covered", "id": ["tertutup", "diliputi", "terlindungi"]}, {"en": "cow", "id": ["sapi"]}, {"en": "crash", "id": ["tabrakan", "kecelakaan", "jatuh", "hancur"]}, {"en": "crazy", "id": ["gila", "sinting"]}, {"en": "cream", "id": ["krim", "kepala susu"]}, {"en": "create", "id": ["menciptakan", "membuat"]}, {"en": "creation", "id": ["ciptaan", "pembuatan"]}, {"en": "creative", "id": ["kreatif"]}, {"en": "creature", "id": ["makhluk"]}, {"en": "credit", "id": ["kredit", "piutang", "penghargaan"]}, {"en": "crew", "id": ["awak", "kru", "personel"]}, {"en": "crime", "id": ["kejahatan", "kriminalitas", "tindak pidana"]}, {"en": "criminal", "id": ["penjahat", "kriminal", "pidana"]}, {"en": "crisis", "id": ["krisis", "kemelut", "kegentingan"]}, {"en": "criterion", "id": ["kriteria", "patokan", "ukuran"]}, {"en": "critic", "id": ["kritikus", "pengecam", "pengulas"]}, {"en": "critical", "id": ["kritis", "gawat", "penting"]}, {"en": "criticism", "id": ["kritik", "kecaman", "ulasan"]}, {"en": "criticize", "id": ["mengkritik", "mengecam", "mencela"]}, {"en": "crop", "id": ["hasil panen", "tanaman", "pangkasan"]}, {"en": "cross", "id": ["silang", "menyeberang", "marah"]}, {"en": "crowd", "id": ["kerumunan", "khalayak ramai"]}, {"en": "crowded", "id": ["ramai", "penuh sesak"]}, {"en": "crucial", "id": ["krusial", "sangat penting"]}, {"en": "cruel", "id": ["kejam", "bengis"]}, {"en": "cry", "id": ["menangis", "berteriak"]}, {"en": "cultural", "id": ["budaya", "kultural"]}, {"en": "culture", "id": ["budaya", "kebudayaan"]}, {"en": "cup", "id": ["cangkir", "piala"]}, {"en": "cupboard", "id": ["lemari"]}, {"en": "cure", "id": ["penyembuhan", "obat", "menyembuhkan"]}, {"en": "curly", "id": ["keriting", "ikal"]}, {"en": "currency", "id": ["mata uang"]}, {"en": "current", "id": ["saat ini", "arus"]}, {"en": "currently", "id": ["saat ini", "sedang"]}, {"en": "curtain", "id": ["tirai", "gorden"]}, {"en": "curve", "id": ["kurva", "lengkungan"]}, {"en": "curved", "id": ["melengkung"]}, {"en": "custom", "id": ["adat", "kebiasaan", "khusus"]}, {"en": "customer", "id": ["pelanggan", "nasabah"]}, {"en": "cut", "id": ["potong", "memotong", "irisan"]}, {"en": "cycle", "id": ["siklus", "daur", "sepeda"]}, {"en": "dad", "id": ["ayah", "bapak", "papa"]}, {"en": "daily", "id": ["harian", "setiap hari"]}, {"en": "damage", "id": ["kerusakan", "merusak"]}, {"en": "dance", "id": ["tari", "menari", "berdansa"]}, {"en": "dancer", "id": ["penari"]}, {"en": "dancing", "id": ["tarian", "menari"]}, {"en": "danger", "id": ["bahaya"]}, {"en": "dangerous", "id": ["berbahaya"]}, {"en": "dark", "id": ["gelap", "kelam", "tua"]}, {"en": "data", "id": ["data"]}, {"en": "date", "id": ["tanggal", "kencan", "kurma"]}, {"en": "daughter", "id": ["anak perempuan", "putri"]}, {"en": "day", "id": ["hari", "siang"]}, {"en": "dead", "id": ["mati", "meninggal", "padam"]}, {"en": "deal", "id": ["kesepakatan", "transaksi", "perjanjian"]}, {"en": "dear", "id": ["sayang", "terhormat", "mahal"]}, {"en": "death", "id": ["kematian", "maut", "ajal"]}, {"en": "debate", "id": ["debat", "perdebatan"]}, {"en": "debt", "id": ["utang", "hutang"]}, {"en": "decade", "id": ["dekade", "dasawarsa"]}, {"en": "decent", "id": ["layak", "pantas", "sopan"]}, {"en": "decide", "id": ["memutuskan", "menentukan"]}, {"en": "decision", "id": ["keputusan", "ketetapan"]}, {"en": "declare", "id": ["menyatakan", "mengumumkan", "mendeklarasikan"]}, {"en": "decline", "id": ["menolak", "menurun", "penurunan"]}, {"en": "decorate", "id": ["menghias", "mendekorasi"]}, {"en": "decoration", "id": ["hiasan", "dekorasi"]}, {"en": "decrease", "id": ["mengurangi", "menurun", "pengurangan"]}, {"en": "deep", "id": ["dalam", "mendalam", "berat"]}, {"en": "deeply", "id": ["sangat", "amat", "secara mendalam"]}, {"en": "defeat", "id": ["kekalahan", "mengalahkan", "menaklukkan"]}, {"en": "defend", "id": ["membela", "mempertahankan", "melindungi"]}, {"en": "defense", "id": ["pertahanan", "pembelaan"]}, {"en": "define", "id": ["mendefinisikan", "menetapkan", "menjelaskan"]}, {"en": "definite", "id": ["pasti", "tentu", "jelas"]}, {"en": "definitely", "id": ["pasti", "tentu saja", "sudah pasti"]}, {"en": "definition", "id": ["definisi", "batasan", "pengertian"]}, {"en": "degree", "id": ["derajat", "tingkat", "gelar"]}, {"en": "delay", "id": ["penundaan", "menunda", "keterlambatan"]}, {"en": "deliberate", "id": ["sengaja", "berencana", "mempertimbangkan"]}, {"en": "deliberately", "id": ["dengan sengaja", "sengaja"]}, {"en": "delicious", "id": ["lezat", "enak", "sedap"]}, {"en": "deliver", "id": ["menyampaikan", "mengirimkan", "mengantarkan", "melahirkan"]}, {"en": "delivery", "id": ["pengiriman", "pengantaran", "persalinan"]}, {"en": "demand", "id": ["tuntutan", "permintaan", "menuntut"]}, {"en": "demonstrate", "id": ["mendemonstrasikan", "menunjukkan", "memperagakan", "berunjuk rasa"]}, {"en": "dentist", "id": ["dokter gigi"]}, {"en": "deny", "id": ["membantah", "menyangkal", "menolak"]}, {"en": "department", "id": ["departemen", "bagian", "jurusan"]}, {"en": "departure", "id": ["keberangkatan", "kepergian"]}, {"en": "depend", "id": ["bergantung", "tergantung"]}, {"en": "depressed", "id": ["depresi", "tertekan", "murung"]}, {"en": "depressing", "id": ["menyedihkan", "suram"]}, {"en": "depth", "id": ["kedalaman"]}, {"en": "describe", "id": ["menggambarkan", "menjelaskan", "mendeskripsikan"]}, {"en": "description", "id": ["deskripsi", "gambaran", "keterangan"]}, {"en": "desert", "id": ["gurun", "padang pasir"]}, {"en": "deserve", "id": ["layak", "pantas", "berhak"]}, {"en": "design", "id": ["rancangan", "desain", "merancang"]}, {"en": "designer", "id": ["perancang", "desainer"]}, {"en": "desire", "id": ["keinginan", "hasrat", "dambaan"]}, {"en": "desk", "id": ["meja", "meja tulis"]}, {"en": "desperate", "id": ["putus asa", "nekat"]}, {"en": "despite", "id": ["meskipun", "walaupun"]}, {"en": "dessert", "id": ["pencuci mulut", "hidangan penutup"]}, {"en": "destination", "id": ["tujuan", "tempat tujuan"]}, {"en": "destroy", "id": ["menghancurkan", "memusnahkan"]}, {"en": "detail", "id": ["rincian", "detail"]}, {"en": "detailed", "id": ["terperinci", "detail"]}, {"en": "detect", "id": ["mendeteksi", "menemukan"]}, {"en": "detective", "id": ["detektif"]}, {"en": "determine", "id": ["menentukan", "menetapkan"]}, {"en": "determined", "id": ["bertekad", "gigih"]}, {"en": "develop", "id": ["mengembangkan", "berkembang"]}, {"en": "development", "id": ["pengembangan", "pembangunan"]}, {"en": "device", "id": ["perangkat", "alat"]}, {"en": "diagram", "id": ["diagram", "bagan"]}, {"en": "dialogue", "id": ["dialog", "percakapan"]}, {"en": "diamond", "id": ["intan", "berlian"]}, {"en": "diary", "id": ["buku harian", "diari"]}, {"en": "dictionary", "id": ["kamus"]}, {"en": "die", "id": ["mati", "meninggal", "wafat"]}, {"en": "diet", "id": ["diet", "pola makan"]}, {"en": "difference", "id": ["perbedaan", "selisih"]}, {"en": "different", "id": ["berbeda", "lain"]}, {"en": "differently", "id": ["secara berbeda"]}, {"en": "difficult", "id": ["sulit", "sukar", "susah"]}, {"en": "difficulty", "id": ["kesulitan", "kesukaran"]}, {"en": "dig", "id": ["menggali", "mengorek"]}, {"en": "digital", "id": ["digital"]}, {"en": "dinner", "id": ["makan malam"]}, {"en": "direct", "id": ["langsung", "mengarahkan"]}, {"en": "direction", "id": ["arah", "petunjuk", "instruksi"]}, {"en": "directly", "id": ["secara langsung", "segera"]}, {"en": "director", "id": ["direktur", "sutradara"]}, {"en": "dirt", "id": ["kotoran", "tanah"]}, {"en": "dirty", "id": ["kotor", "cemar"]}, {"en": "disadvantage", "id": ["kerugian", "kekurangan", "kelemahan"]}, {"en": "disagree", "id": ["tidak setuju", "berselisih paham"]}, {"en": "disappear", "id": ["menghilang", "lenyap"]}, {"en": "disappointed", "id": ["kecewa"]}, {"en": "disappointing", "id": ["mengecewakan"]}, {"en": "disaster", "id": ["bencana", "malapetaka"]}, {"en": "discipline", "id": ["disiplin", "tertib"]}, {"en": "discount", "id": ["diskon", "potongan harga"]}, {"en": "discover", "id": ["menemukan", "mendapati"]}, {"en": "discovery", "id": ["penemuan"]}, {"en": "discuss", "id": ["membahas", "mendiskusikan", "membicarakan"]}, {"en": "discussion", "id": ["diskusi", "pembahasan", "perundingan"]}, {"en": "disease", "id": ["penyakit"]}, {"en": "dish", "id": ["hidangan", "piring"]}, {"en": "dishonest", "id": ["tidak jujur", "curang"]}, {"en": "disk", "id": ["cakram", "piringan"]}, {"en": "dislike", "id": ["tidak suka", "benci"]}, {"en": "dismiss", "id": ["memecat", "memberhentikan", "membubarkan", "mengabaikan"]}, {"en": "display", "id": ["tampilan", "pameran", "menampilkan", "memajang"]}, {"en": "distance", "id": ["jarak"]}, {"en": "distribute", "id": ["mendistribusikan", "membagikan", "menyalurkan"]}, {"en": "distribution", "id": ["distribusi", "penyaluran", "pembagian"]}, {"en": "district", "id": ["distrik", "daerah", "wilayah", "kecamatan"]}, {"en": "divide", "id": ["membagi", "memisahkan", "memecah"]}, {"en": "division", "id": ["divisi", "bagian", "pembagian"]}, {"en": "divorced", "id": ["bercerai", "cerai"]}, {"en": "doctor", "id": ["dokter"]}, {"en": "document", "id": ["dokumen", "naskah"]}, {"en": "documentary", "id": ["dokumenter"]}, {"en": "dog", "id": ["anjing"]}, {"en": "dollar", "id": ["dolar"]}, {"en": "domestic", "id": ["domestik", "dalam negeri", "rumah tangga"]}, {"en": "dominate", "id": ["mendominasi", "menguasai"]}, {"en": "donate", "id": ["menyumbang", "mendonasikan"]}, {"en": "door", "id": ["pintu"]}, {"en": "double", "id": ["ganda", "dua kali lipat", "rangkap"]}, {"en": "doubt", "id": ["ragu", "keraguan", "menyangsikan"]}, {"en": "down", "id": ["bawah", "turun"]}, {"en": "download", "id": ["mengunduh", "unduh"]}, {"en": "downstairs", "id": ["di bawah", "lantai bawah"]}, {"en": "downtown", "id": ["pusat kota"]}, {"en": "downward", "id": ["ke bawah", "menurun"]}, {"en": "dozen", "id": ["lusin"]}, {"en": "draft", "id": ["draf", "rancangan", "konsep", "wesel"]}, {"en": "drag", "id": ["menyeret", "menarik", "hambatan"]}, {"en": "drama", "id": ["drama", "sandiwara"]}, {"en": "dramatic", "id": ["dramatis", "mendalam", "mencolok"]}, {"en": "draw", "id": ["menggambar", "menarik", "seri"]}, {"en": "drawing", "id": ["gambar", "lukisan", "penarikan"]}, {"en": "dream", "id": ["mimpi", "impian"]}, {"en": "dress", "id": ["gaun", "pakaian", "berdandan"]}, {"en": "dressed", "id": ["berpakaian", "berdandan"]}, {"en": "drink", "id": ["minum", "minuman"]}, {"en": "drive", "id": ["mengemudi", "menyetir", "dorongan"]}, {"en": "driver", "id": ["pengemudi", "sopir", "supir"]}, {"en": "driving", "id": ["mengemudi", "penyetiran"]}, {"en": "drop", "id": ["menjatuhkan", "jatuh", "tetes"]}, {"en": "drug", "id": ["obat", "narkoba", "obat-obatan"]}, {"en": "drum", "id": ["drum", "gendang", "tong"]}, {"en": "drunk", "id": ["mabuk"]}, {"en": "dry", "id": ["kering", "mengeringkan"]}, {"en": "due", "id": ["jatuh tempo", "karena", "hak", "sewajarnya"]}, {"en": "during", "id": ["selama", "sewaktu", "dalam kurun waktu"]}, {"en": "dust", "id": ["debu", "serbuk"]}, {"en": "duty", "id": ["tugas", "kewajiban", "bea", "cukai"]}, {"en": "each", "id": ["setiap", "masing-masing", "tiap-tiap"]}, {"en": "ear", "id": ["telinga", "kuping"]}, {"en": "early", "id": ["awal", "dini", "pagi-pagi"]}, {"en": "earn", "id": ["menghasilkan", "mendapatkan", "memperoleh"]}, {"en": "earth", "id": ["bumi", "tanah", "dunia"]}, {"en": "earthquake", "id": ["gempa bumi"]}, {"en": "easily", "id": ["dengan mudah", "gampang"]}, {"en": "east", "id": ["timur"]}, {"en": "eastern", "id": ["sebelah timur", "bagian timur"]}, {"en": "easy", "id": ["mudah", "gampang", "enteng"]}, {"en": "eat", "id": ["makan"]}, {"en": "economic", "id": ["ekonomi", "ekonomis"]}, {"en": "economy", "id": ["ekonomi", "penghematan"]}, {"en": "edge", "id": ["tepi", "pinggiran", "ujung"]}, {"en": "edit", "id": ["menyunting", "mengedit"]}, {"en": "edition", "id": ["edisi", "cetakan"]}, {"en": "editor", "id": ["penyunting", "editor", "redaktur"]}, {"en": "educate", "id": ["mendidik", "mengedukasi"]}, {"en": "educated", "id": ["terdidik", "berpendidikan"]}, {"en": "education", "id": ["pendidikan", "edukasi"]}, {"en": "educational", "id": ["edukatif", "bersifat mendidik", "kependidikan"]}, {"en": "effect", "id": ["efek", "pengaruh", "akibat"]}, {"en": "effective", "id": ["efektif", "berkhasiat", "manjur"]}, {"en": "effectively", "id": ["secara efektif", "dengan efektif"]}, {"en": "efficient", "id": ["efisien", "sangkil", "hemat"]}, {"en": "effort", "id": ["upaya", "usaha", "ikhtiar"]}, {"en": "egg", "id": ["telur"]}, {"en": "either", "id": ["salah satu", "juga", "baik"]}, {"en": "elderly", "id": ["lanjut usia", "tua", "lansia"]}, {"en": "elect", "id": ["memilih", "terpilih"]}, {"en": "election", "id": ["pemilihan", "pemilihan umum", "pemilu"]}, {"en": "electric", "id": ["listrik", "bertenaga listrik"]}, {"en": "electrical", "id": ["listrik", "berkaitan dengan listrik"]}, {"en": "electricity", "id": ["listrik", "tenaga listrik"]}, {"en": "electronic", "id": ["elektronik"]}, {"en": "element", "id": ["unsur", "elemen", "bagian"]}, {"en": "elephant", "id": ["gajah"]}, {"en": "elevator", "id": ["lift", "elevator"]}, {"en": "else", "id": ["lain", "lainnya"]}, {"en": "elsewhere", "id": ["di tempat lain"]}, {"en": "email", "id": ["email", "surel", "surat elektronik"]}, {"en": "embarrassed", "id": ["malu"]}, {"en": "embarrassing", "id": ["memalukan"]}, {"en": "emerge", "id": ["muncul", "timbul"]}, {"en": "emergency", "id": ["darurat", "keadaan darurat"]}, {"en": "emotion", "id": ["emosi", "perasaan"]}, {"en": "emotional", "id": ["emosional", "mengharukan"]}, {"en": "emphasis", "id": ["penekanan", "tekanan", "titik berat"]}, {"en": "emphasize", "id": ["menekankan", "menitikberatkan"]}, {"en": "employ", "id": ["mempekerjakan", "menggunakan", "memakai"]}, {"en": "employee", "id": ["karyawan", "pegawai", "pekerja"]}, {"en": "employer", "id": ["majikan", "pemberi kerja"]}, {"en": "employment", "id": ["pekerjaan", "ketenagakerjaan", "penggunaan"]}, {"en": "empty", "id": ["kosong", "hampa"]}, {"en": "enable", "id": ["memungkinkan", "mengaktifkan"]}, {"en": "encounter", "id": ["pertemuan", "menghadapi", "menjumpai"]}, {"en": "encourage", "id": ["mendorong", "menyemangati", "menganjurkan"]}, {"en": "end", "id": ["akhir", "ujung", "selesai", "mengakhiri"]}, {"en": "ending", "id": ["akhir", "akhiran", "penutup"]}, {"en": "enemy", "id": ["musuh"]}, {"en": "energy", "id": ["energi", "tenaga", "daya"]}, {"en": "engage", "id": ["mengikutsertakan", "melibatkan", "bertunangan", "menarik perhatian"]}, {"en": "engaged", "id": ["bertunangan", "sibuk", "terlibat"]}, {"en": "engine", "id": ["mesin", "motor"]}, {"en": "engineer", "id": ["insinyur", "teknisi", "masinis"]}, {"en": "engineering", "id": ["teknik", "rekayasa"]}, {"en": "enhance", "id": ["meningkatkan", "mempertinggi", "memperbaiki"]}, {"en": "enjoy", "id": ["menikmati", "menyukai"]}, {"en": "enormous", "id": ["sangat besar", "besar sekali", "luar biasa besar"]}, {"en": "enough", "id": ["cukup"]}, {"en": "ensure", "id": ["memastikan", "menjamin"]}, {"en": "enter", "id": ["masuk", "memasukkan"]}, {"en": "entertain", "id": ["menghibur", "menjamu"]}, {"en": "entertainment", "id": ["hiburan"]}, {"en": "enthusiasm", "id": ["antusiasme", "semangat", "kegairahan"]}, {"en": "enthusiastic", "id": ["antusias", "bersemangat"]}, {"en": "entire", "id": ["seluruh", "segenap", "utuh"]}, {"en": "entirely", "id": ["sepenuhnya", "sama sekali", "seluruhnya"]}, {"en": "entrance", "id": ["pintu masuk", "jalan masuk", "masuk"]}, {"en": "entry", "id": ["entri", "pendaftaran", "pintu masuk", "catatan"]}, {"en": "environment", "id": ["lingkungan", "suasana"]}, {"en": "environmental", "id": ["lingkungan", "terkait lingkungan"]}, {"en": "episode", "id": ["episode", "kejadian", "babak"]}, {"en": "equal", "id": ["sama", "setara", "sebanding"]}, {"en": "equally", "id": ["sama rata", "secara merata", "sama"]}, {"en": "equipment", "id": ["peralatan", "perlengkapan"]}, {"en": "error", "id": ["kesalahan", "kekeliruan", "galat"]}, {"en": "escape", "id": ["melarikan diri", "lolos", "meloloskan diri", "pelarian"]}, {"en": "especially", "id": ["terutama", "khususnya", "teristimewa"]}, {"en": "essay", "id": ["esai", "karangan", "tulisan"]}, {"en": "essential", "id": ["penting", "mendasar", "hakiki", "esensial"]}, {"en": "establish", "id": ["mendirikan", "menetapkan", "membangun", "mengukuhkan"]}, {"en": "estate", "id": ["perkebunan", "harta benda", "real estat", "tanah luas"]}, {"en": "estimate", "id": ["memperkirakan", "menaksir", "estimasi", "perkiraan"]}, {"en": "ethical", "id": ["etis", "bermoral", "berhubungan dengan etika"]}, {"en": "euro", "id": ["euro"]}, {"en": "evaluate", "id": ["mengevaluasi", "menilai"]}, {"en": "even", "id": ["bahkan", "rata", "genap"]}, {"en": "evening", "id": ["malam", "petang", "sore"]}, {"en": "event", "id": ["acara", "peristiwa", "kejadian"]}, {"en": "eventually", "id": ["akhirnya", "pada akhirnya"]}, {"en": "ever", "id": ["pernah", "selalu"]}, {"en": "every", "id": ["setiap", "tiap"]}, {"en": "everybody", "id": ["semua orang", "setiap orang"]}, {"en": "everyday", "id": ["sehari-hari", "harian"]}, {"en": "everyone", "id": ["semua orang", "setiap orang"]}, {"en": "everything", "id": ["segalanya", "semua hal"]}, {"en": "everywhere", "id": ["di mana-mana", "ke mana-mana"]}, {"en": "evidence", "id": ["bukti", "keterangan"]}, {"en": "evil", "id": ["jahat", "kejahatan"]}, {"en": "exact", "id": ["tepat", "persis", "teliti"]}, {"en": "exactly", "id": ["tepat", "persis", "benar-benar"]}, {"en": "exam", "id": ["ujian", "tes"]}, {"en": "examination", "id": ["ujian", "pemeriksaan"]}, {"en": "examine", "id": ["memeriksa", "menguji"]}, {"en": "example", "id": ["contoh", "misalnya"]}, {"en": "excellent", "id": ["sangat baik", "unggul", "istimewa"]}, {"en": "except", "id": ["kecuali", "selain"]}, {"en": "exchange", "id": ["pertukaran", "menukar", "bursa"]}, {"en": "excited", "id": ["bersemangat", "antusias", "gembira"]}, {"en": "excitement", "id": ["kegembiraan", "kesenangan", "antusiasme"]}, {"en": "exciting", "id": ["menarik", "mengasyikkan", "mendebarkan"]}, {"en": "excuse", "id": ["alasan", "memaafkan", "meminta izin"]}, {"en": "executive", "id": ["eksekutif", "direktur", "pemimpin"]}, {"en": "exercise", "id": ["olahraga", "latihan", "melakukan"]}, {"en": "exhibit", "id": ["memamerkan", "pameran"]}, {"en": "exhibition", "id": ["pameran", "ekshibisi"]}, {"en": "exist", "id": ["ada", "eksis", "berada"]}, {"en": "existence", "id": ["keberadaan", "eksistensi"]}, {"en": "exit", "id": ["keluar", "pintu keluar"]}, {"en": "expand", "id": ["memperluas", "berkembang", "mengembangkan"]}, {"en": "expect", "id": ["mengharapkan", "mengira", "menduga"]}, {"en": "expectation", "id": ["harapan", "ekspektasi"]}, {"en": "expected", "id": ["diharapkan", "sesuai yang diharapkan"]}, {"en": "expense", "id": ["biaya", "pengeluaran"]}, {"en": "expensive", "id": ["mahal"]}, {"en": "experience", "id": ["pengalaman", "mengalami"]}, {"en": "experienced", "id": ["berpengalaman"]}, {"en": "experiment", "id": ["percobaan", "eksperimen"]}, {"en": "expert", "id": ["ahli", "pakar"]}, {"en": "explain", "id": ["menjelaskan", "menerangkan"]}, {"en": "explanation", "id": ["penjelasan", "keterangan"]}, {"en": "explode", "id": ["meledak", "meledakkan"]}, {"en": "exploration", "id": ["eksplorasi", "penjelajahan"]}, {"en": "explore", "id": ["menjelajahi", "mengeksplorasi"]}, {"en": "explosion", "id": ["ledakan", "letupan"]}, {"en": "export", "id": ["ekspor", "mengekspor"]}, {"en": "expose", "id": ["mengekspos", "mengungkap"]}, {"en": "express", "id": ["mengungkapkan", "ekspres", "menyatakan"]}, {"en": "expression", "id": ["ekspresi", "ungkapan"]}, {"en": "extend", "id": ["memperpanjang", "memperluas"]}, {"en": "extent", "id": ["sejauh mana", "tingkat", "batas"]}, {"en": "external", "id": ["eksternal", "luar"]}, {"en": "extra", "id": ["tambahan", "ekstra"]}, {"en": "extraordinary", "id": ["luar biasa", "istimewa"]}, {"en": "extreme", "id": ["ekstrem", "sangat"]}, {"en": "extremely", "id": ["sangat", "amat"]}, {"en": "eye", "id": ["mata"]}, {"en": "face", "id": ["wajah", "muka", "menghadapi"]}, {"en": "facility", "id": ["fasilitas", "kemudahan"]}, {"en": "fact", "id": ["fakta", "kenyataan"]}, {"en": "factor", "id": ["faktor", "unsur"]}, {"en": "factory", "id": ["pabrik"]}, {"en": "fail", "id": ["gagal", "tidak lulus"]}, {"en": "failure", "id": ["kegagalan", "gagal"]}, {"en": "fair", "id": ["adil", "wajar", "pekan raya"]}, {"en": "fairly", "id": ["cukup", "agak", "secara adil"]}, {"en": "faith", "id": ["kepercayaan", "keyakinan", "iman"]}, {"en": "fall", "id": ["jatuh", "musim gugur"]}, {"en": "false", "id": ["palsu", "salah", "tidak benar"]}, {"en": "familiar", "id": ["akrab", "kenal", "familiar"]}, {"en": "family", "id": ["keluarga"]}, {"en": "famous", "id": ["terkenal", "mashur"]}, {"en": "fan", "id": ["penggemar", "kipas"]}, {"en": "fancy", "id": ["mewah", "menginginkan", "khayalan"]}, {"en": "fantastic", "id": ["fantastis", "luar biasa"]}, {"en": "far", "id": ["jauh"]}, {"en": "farm", "id": ["ladang", "pertanian"]}, {"en": "farmer", "id": ["petani"]}, {"en": "farming", "id": ["pertanian", "bercocok tanam"]}, {"en": "fascinating", "id": ["menarik", "menakjubkan", "memukau"]}, {"en": "fashion", "id": ["mode", "gaya", "fashion"]}, {"en": "fashionable", "id": ["modis", "trendi"]}, {"en": "fashioned", "id": ["bergaya", "bermodel"]}, {"en": "fast", "id": ["cepat", "puasa"]}, {"en": "fasten", "id": ["mengencangkan", "mengikat"]}, {"en": "fat", "id": ["gemuk", "lemak"]}, {"en": "father", "id": ["ayah", "bapak"]}, {"en": "fault", "id": ["kesalahan", "kerusakan"]}, {"en": "favor", "id": ["bantuan", "mendukung", "kebaikan"]}, {"en": "favorite", "id": ["favorit", "kesukaan"]}, {"en": "fear", "id": ["ketakutan", "takut"]}, {"en": "feather", "id": ["bulu"]}, {"en": "feature", "id": ["fitur", "ciri khas", "menampilkan"]}, {"en": "federal", "id": ["federal", "serikat"]}, {"en": "fee", "id": ["biaya", "bayaran"]}, {"en": "feed", "id": ["memberi makan", "pakan"]}, {"en": "feedback", "id": ["umpan balik", "masukan"]}, {"en": "feel", "id": ["merasa", "merasakan"]}, {"en": "feeling", "id": ["perasaan", "rasa"]}, {"en": "fellow", "id": ["rekan", "sesama", "teman"]}, {"en": "female", "id": ["perempuan", "wanita", "betina"]}, {"en": "fence", "id": ["pagar"]}, {"en": "festival", "id": ["festival", "perayaan"]}, {"en": "fever", "id": ["demam"]}, {"en": "few", "id": ["beberapa", "sedikit"]}, {"en": "fiction", "id": ["fiksi", "cerita rekaan"]}, {"en": "field", "id": ["bidang", "lapangan", "lahan"]}, {"en": "fight", "id": ["berkelahi", "berjuang", "pertarungan"]}, {"en": "fighting", "id": ["perkelahian", "pertarungan"]}, {"en": "figure", "id": ["angka", "tokoh", "sosok"]}, {"en": "file", "id": ["berkas", "file", "mengajukan"]}, {"en": "fill", "id": ["mengisi", "memenuhi"]}, {"en": "film", "id": ["film", "merekam"]}, {"en": "final", "id": ["akhir", "final"]}, {"en": "finally", "id": ["akhirnya", "pada akhirnya"]}, {"en": "finance", "id": ["keuangan"]}, {"en": "financial", "id": ["keuangan", "finansial"]}, {"en": "find", "id": ["menemukan", "mendapatkan"]}, {"en": "finding", "id": ["temuan", "penemuan"]}, {"en": "fine", "id": ["baik-baik saja", "denda", "halus"]}, {"en": "finger", "id": ["jari"]}, {"en": "finish", "id": ["selesai", "menyelesaikan"]}, {"en": "fire", "id": ["api", "memecat", "menembak"]}, {"en": "firm", "id": ["tegas", "perusahaan", "keras"]}, {"en": "first", "id": ["pertama"]}, {"en": "fish", "id": ["ikan", "memancing"]}, {"en": "fishing", "id": ["memancing", "perikanan"]}, {"en": "fit", "id": ["sesuai", "cocok", "bugar"]}, {"en": "fitness", "id": ["kebugaran"]}, {"en": "fix", "id": ["memperbaiki", "menetapkan"]}, {"en": "fixed", "id": ["tetap", "diperbaiki"]}, {"en": "flag", "id": ["bendera"]}, {"en": "flame", "id": ["api", "nyala"]}, {"en": "flash", "id": ["kilat", "cahaya kilat"]}, {"en": "flat", "id": ["datar", "apartemen", "kempes"]}, {"en": "flexible", "id": ["fleksibel", "luwes"]}, {"en": "flight", "id": ["penerbangan", "terbang"]}, {"en": "float", "id": ["mengapung", "melayang"]}, {"en": "flood", "id": ["banjir"]}, {"en": "floor", "id": ["lantai", "dasar"]}, {"en": "flour", "id": ["tepung"]}, {"en": "flow", "id": ["aliran", "mengalir"]}, {"en": "flower", "id": ["bunga"]}, {"en": "flu", "id": ["flu", "influenza"]}, {"en": "fly", "id": ["terbang", "lalat"]}, {"en": "flying", "id": ["terbang"]}, {"en": "focus", "id": ["fokus", "memusatkan perhatian"]}, {"en": "fold", "id": ["melipat", "lipatan"]}, {"en": "folding", "id": ["pelipatan", "melipat"]}, {"en": "folk", "id": ["rakyat", "tradisional"]}, {"en": "follow", "id": ["mengikuti", "menelusuri"]}, {"en": "following", "id": ["berikut", "mengikuti"]}, {"en": "food", "id": ["makanan"]}, {"en": "foot", "id": ["kaki", "kaki (satuan)"]}, {"en": "football", "id": ["sepak bola", "futbol"]}, {"en": "for", "id": ["untuk", "bagi"]}, {"en": "force", "id": ["kekuatan", "memaksa", "daya"]}, {"en": "foreign", "id": ["asing", "luar negeri"]}, {"en": "forest", "id": ["hutan"]}, {"en": "forever", "id": ["selamanya", "untuk selama-lamanya"]}, {"en": "forget", "id": ["melupakan", "lupa"]}, {"en": "forgive", "id": ["memaafkan"]}, {"en": "fork", "id": ["garpu"]}, {"en": "form", "id": ["formulir", "bentuk", "membentuk"]}, {"en": "formal", "id": ["resmi", "formal"]}, {"en": "former", "id": ["mantan", "terdahulu"]}, {"en": "fortunately", "id": ["beruntungnya", "untungnya"]}, {"en": "fortune", "id": ["keberuntungan", "nasib", "kekayaan"]}, {"en": "forward", "id": ["ke depan", "meneruskan"]}, {"en": "found", "id": ["menemukan", "mendirikan"]}, {"en": "frame", "id": ["bingkai", "kerangka"]}, {"en": "free", "id": ["bebas", "gratis", "membebaskan"]}, {"en": "freedom", "id": ["kebebasan", "kemerdekaan"]}, {"en": "freeze", "id": ["membekukan", "membeku"]}, {"en": "frequency", "id": ["frekuensi"]}, {"en": "frequently", "id": ["sering", "kerap"]}, {"en": "fresh", "id": ["segar", "baru"]}, {"en": "friend", "id": ["teman", "sahabat", "kawan"]}, {"en": "friendly", "id": ["ramah", "bersahabat"]}, {"en": "friendship", "id": ["persahabatan", "pertemanan"]}, {"en": "frighten", "id": ["menakuti", "menakutkan"]}, {"en": "frightened", "id": ["takut", "ketakutan"]}, {"en": "frightening", "id": ["menakutkan", "mengkhawatirkan"]}, {"en": "frog", "id": ["katak"]}, {"en": "from", "id": ["dari"]}, {"en": "front", "id": ["depan", "muka"]}, {"en": "frozen", "id": ["beku", "membeku"]}, {"en": "fruit", "id": ["buah", "buah-buahan"]}, {"en": "fry", "id": ["menggoreng", "goreng"]}, {"en": "fuel", "id": ["bahan bakar"]}, {"en": "full", "id": ["penuh", "lengkap"]}, {"en": "fully", "id": ["sepenuhnya", "seluruhnya"]}, {"en": "fun", "id": ["menyenangkan", "kesenangan"]}, {"en": "function", "id": ["fungsi", "berfungsi", "acara"]}, {"en": "fund", "id": ["dana", "mendanai"]}, {"en": "fundamental", "id": ["mendasar", "fundamental", "pokok"]}, {"en": "funding", "id": ["pendanaan", "dana"]}, {"en": "funny", "id": ["lucu", "menggelikan"]}, {"en": "fur", "id": ["bulu binatang"]}, {"en": "furniture", "id": ["perabot", "furnitur"]}, {"en": "further", "id": ["lebih jauh", "lebih lanjut"]}, {"en": "furthermore", "id": ["selain itu", "lebih lanjut lagi"]}, {"en": "future", "id": ["masa depan", "akan datang"]}, {"en": "gain", "id": ["mendapatkan", "keuntungan", "bertambah"]}, {"en": "gallery", "id": ["galeri"]}, {"en": "game", "id": ["permainan", "pertandingan"]}, {"en": "gang", "id": ["geng", "kawanan"]}, {"en": "gap", "id": ["celah", "kesenjangan", "jarak"]}, {"en": "garage", "id": ["garasi"]}, {"en": "garbage", "id": ["sampah", "limbah"]}, {"en": "garden", "id": ["taman", "kebun"]}, {"en": "gas", "id": ["gas", "bensin"]}, {"en": "gate", "id": ["gerbang", "pintu gerbang"]}, {"en": "gather", "id": ["mengumpulkan", "berkumpul"]}, {"en": "general", "id": ["umum", "jenderal"]}, {"en": "generally", "id": ["umumnya", "pada umumnya"]}, {"en": "generate", "id": ["menghasilkan", "membangkitkan"]}, {"en": "generation", "id": ["generasi", "angkatan"]}, {"en": "generous", "id": ["dermawan", "murah hati"]}, {"en": "genre", "id": ["genre", "jenis"]}, {"en": "gentle", "id": ["lembut", "halus"]}, {"en": "gentleman", "id": ["pria", "tuan"]}, {"en": "geography", "id": ["geografi"]}, {"en": "get", "id": ["mendapatkan", "memperoleh"]}, {"en": "ghost", "id": ["hantu", "setan"]}, {"en": "giant", "id": ["raksasa", "besar sekali"]}, {"en": "gift", "id": ["hadiah", "kado", "bakat"]}, {"en": "girl", "id": ["gadis", "perempuan"]}, {"en": "girlfriend", "id": ["pacar", "teman perempuan"]}, {"en": "give", "id": ["memberikan", "memberi"]}, {"en": "glad", "id": ["senang", "gembira"]}, {"en": "glass", "id": ["kaca", "gelas"]}, {"en": "global", "id": ["global", "mendunia"]}, {"en": "glove", "id": ["sarung tangan"]}, {"en": "go", "id": ["pergi", "berjalan"]}, {"en": "goal", "id": ["gol", "tujuan", "sasaran"]}, {"en": "god", "id": ["Tuhan", "tuhan"]}, {"en": "gold", "id": ["emas"]}, {"en": "golf", "id": ["golf"]}, {"en": "good", "id": ["baik", "bagus"]}, {"en": "goods", "id": ["barang", "produk"]}, {"en": "govern", "id": ["memerintah", "mengatur"]}, {"en": "government", "id": ["pemerintah", "pemerintahan"]}, {"en": "governor", "id": ["gubernur"]}, {"en": "grab", "id": ["mengambil", "merebut"]}, {"en": "grade", "id": ["nilai", "kelas", "tingkat"]}, {"en": "gradually", "id": ["secara bertahap", "perlahan-lahan"]}, {"en": "graduate", "id": ["lulus", "sarjana"]}, {"en": "grain", "id": ["biji-bijian", "butir"]}, {"en": "grand", "id": ["besar", "megah", "agung"]}, {"en": "grandfather", "id": ["kakek"]}, {"en": "grandmother", "id": ["nenek"]}, {"en": "grandparent", "id": ["kakek-nenek"]}, {"en": "grant", "id": ["hibah", "memberikan"]}, {"en": "grass", "id": ["rumput"]}, {"en": "grateful", "id": ["berterima kasih", "bersyukur"]}, {"en": "gray", "id": ["abu-abu"]}, {"en": "great", "id": ["hebat", "besar", "luar biasa"]}, {"en": "green", "id": ["hijau"]}, {"en": "greet", "id": ["menyapa", "memberi salam"]}, {"en": "grocery", "id": ["bahan makanan", "toko kelontong"]}, {"en": "ground", "id": ["tanah", "dasar", "alasan"]}, {"en": "group", "id": ["kelompok", "grup"]}, {"en": "grow", "id": ["tumbuh", "berkembang"]}, {"en": "growth", "id": ["pertumbuhan", "perkembangan"]}, {"en": "guarantee", "id": ["garansi", "menjamin"]}, {"en": "guard", "id": ["penjaga", "menjaga"]}, {"en": "guess", "id": ["menebak", "menduga", "kira-kira"]}, {"en": "guest", "id": ["tamu"]}, {"en": "guide", "id": ["panduan", "pemandu", "memandu"]}, {"en": "guilty", "id": ["bersalah", "merasa bersalah"]}, {"en": "guitar", "id": ["gitar"]}, {"en": "gun", "id": ["senjata api", "pistol"]}, {"en": "guy", "id": ["pria", "cowok"]}, {"en": "gym", "id": ["gym", "pusat kebugaran"]}, {"en": "habit", "id": ["kebiasaan", "tabiat"]}, {"en": "hair", "id": ["rambut"]}, {"en": "half", "id": ["setengah", "separuh"]}, {"en": "hall", "id": ["aula", "lorong"]}, {"en": "hand", "id": ["tangan"]}, {"en": "handle", "id": ["menangani", "gagang"]}, {"en": "hang", "id": ["menggantung", "menyangkut"]}, {"en": "happen", "id": ["terjadi", "terjadi"]}, {"en": "happily", "id": ["dengan bahagia", "dengan gembira"]}, {"en": "happiness", "id": ["kebahagiaan", "kesenangan"]}, {"en": "happy", "id": ["bahagia", "senang", "gembira"]}, {"en": "hard", "id": ["keras", "sulit", "susah"]}, {"en": "hardly", "id": ["hampir tidak", "dengan susah payah"]}, {"en": "harm", "id": ["bahaya", "merugikan"]}, {"en": "harmful", "id": ["berbahaya", "merugikan"]}, {"en": "hat", "id": ["topi"]}, {"en": "hate", "id": ["membenci", "benci"]}, {"en": "have", "id": ["mempunyai", "memiliki"]}, {"en": "he", "id": ["dia (laki-laki)", "ia"]}, {"en": "head", "id": ["kepala", "memimpin"]}, {"en": "headache", "id": ["sakit kepala"]}, {"en": "headline", "id": ["judul berita", "headline"]}, {"en": "health", "id": ["kesehatan"]}, {"en": "healthy", "id": ["sehat"]}, {"en": "hear", "id": ["mendengar"]}, {"en": "hearing", "id": ["pendengaran", "sidang"]}, {"en": "heart", "id": ["hati", "jantung"]}, {"en": "heat", "id": ["panas", "memanaskan"]}, {"en": "heating", "id": ["pemanasan"]}, {"en": "heaven", "id": ["surga", "langit"]}, {"en": "heavily", "id": ["dengan berat", "sangat"]}, {"en": "heavy", "id": ["berat"]}, {"en": "heel", "id": ["tumit"]}, {"en": "height", "id": ["ketinggian", "tinggi"]}, {"en": "helicopter", "id": ["helikopter"]}, {"en": "hell", "id": ["neraka"]}, {"en": "help", "id": ["membantu", "bantuan"]}, {"en": "helpful", "id": ["membantu", "berguna"]}, {"en": "her", "id": ["dia (perempuan)", "miliknya"]}, {"en": "here", "id": ["di sini"]}, {"en": "hero", "id": ["pahlawan", "jagoan"]}, {"en": "hers", "id": ["miliknya (perempuan)"]}, {"en": "herself", "id": ["dirinya sendiri (perempuan)"]}, {"en": "hesitate", "id": ["ragu-ragu", "menunda"]}, {"en": "hide", "id": ["bersembunyi", "menyembunyikan"]}, {"en": "high", "id": ["tinggi"]}, {"en": "highlight", "id": ["menyoroti", "sorotan"]}, {"en": "highly", "id": ["sangat", "amat"]}, {"en": "highway", "id": ["jalan raya", "tol"]}, {"en": "hill", "id": ["bukit"]}, {"en": "him", "id": ["dia (laki-laki, objek)"]}, {"en": "himself", "id": ["dirinya sendiri (laki-laki)"]}, {"en": "hire", "id": ["mempekerjakan", "menyewa"]}, {"en": "his", "id": ["miliknya (laki-laki)"]}, {"en": "historic", "id": ["bersejarah"]}, {"en": "historical", "id": ["bersejarah", "historis"]}, {"en": "history", "id": ["sejarah", "riwayat"]}, {"en": "hit", "id": ["memukul", "menghantam"]}, {"en": "hobby", "id": ["hobi"]}, {"en": "hockey", "id": ["hoki"]}, {"en": "hold", "id": ["memegang", "menahan", "menyelenggarakan"]}, {"en": "hole", "id": ["lubang"]}, {"en": "holiday", "id": ["liburan", "hari libur"]}, {"en": "hollow", "id": ["berongga", "kosong", "lubang"]}, {"en": "holy", "id": ["suci", "sakral"]}, {"en": "home", "id": ["rumah", "rumah tangga"]}, {"en": "homework", "id": ["pekerjaan rumah", "PR"]}, {"en": "honest", "id": ["jujur"]}, {"en": "honor", "id": ["kehormatan", "menghormati"]}, {"en": "hope", "id": ["harapan", "berharap"]}, {"en": "horrible", "id": ["mengerikan", "buruk sekali"]}, {"en": "horror", "id": ["horor", "ketakutan"]}, {"en": "horse", "id": ["kuda"]}, {"en": "hospital", "id": ["rumah sakit"]}, {"en": "host", "id": ["tuan rumah", "pembawa acara"]}, {"en": "hot", "id": ["panas", "pedas"]}, {"en": "hotel", "id": ["hotel"]}, {"en": "hour", "id": ["jam"]}, {"en": "house", "id": ["rumah"]}, {"en": "household", "id": ["rumah tangga"]}, {"en": "housing", "id": ["perumahan"]}, {"en": "how", "id": ["bagaimana", "seberapa"]}, {"en": "however", "id": ["namun", "akan tetapi"]}, {"en": "huge", "id": ["sangat besar", "besar sekali"]}, {"en": "human", "id": ["manusia", "insani"]}, {"en": "humor", "id": ["humor", "lelucon"]}, {"en": "humorous", "id": ["lucu", "menggelikan"]}, {"en": "hungry", "id": ["lapar"]}, {"en": "hunt", "id": ["berburu", "mencari"]}, {"en": "hunting", "id": ["berburu", "perburuan"]}, {"en": "hurricane", "id": ["badai", "topan"]}, {"en": "hurry", "id": ["terburu-buru", "cepat"]}, {"en": "hurt", "id": ["menyakiti", "terluka"]}, {"en": "husband", "id": ["suami"]}, {"en": "ice", "id": ["es"]}, {"en": "idea", "id": ["ide", "gagasan", "pikiran"]}, {"en": "ideal", "id": ["ideal", "sempurna"]}, {"en": "identify", "id": ["mengidentifikasi", "mengenali"]}, {"en": "identity", "id": ["identitas", "jati diri"]}, {"en": "if", "id": ["jika", "kalau"]}, {"en": "ignore", "id": ["mengabaikan", "tidak peduli"]}, {"en": "ill", "id": ["sakit"]}, {"en": "illegal", "id": ["ilegal", "tidak sah"]}, {"en": "illness", "id": ["penyakit", "sakit"]}, {"en": "illustrate", "id": ["menggambarkan", "mengilustrasikan"]}, {"en": "illustration", "id": ["ilustrasi", "gambar"]}, {"en": "image", "id": ["gambar", "citra"]}, {"en": "imaginary", "id": ["imajiner", "khayalan"]}, {"en": "imagination", "id": ["imajinasi", "khayalan"]}, {"en": "imagine", "id": ["membayangkan", "berimajinasi"]}, {"en": "immediate", "id": ["segera", "langsung"]}, {"en": "immediately", "id": ["segera", "langsung"]}, {"en": "immigrant", "id": ["imigran", "pendatang"]}, {"en": "impact", "id": ["dampak", "pengaruh"]}, {"en": "impatient", "id": ["tidak sabar", "gelisah"]}, {"en": "imply", "id": ["menyiratkan", "mengisyaratkan"]}, {"en": "import", "id": ["impor", "mengimpor"]}, {"en": "importance", "id": ["pentingnya", "kepentingan"]}, {"en": "important", "id": ["penting"]}, {"en": "impose", "id": ["memaksakan", "menerapkan"]}, {"en": "impossible", "id": ["tidak mungkin", "mustahil"]}, {"en": "impress", "id": ["terkesan", "mengesankan"]}, {"en": "impressed", "id": ["terkesan", "terpesan"]}, {"en": "impression", "id": ["kesan", "impresi"]}, {"en": "impressive", "id": ["mengesankan", "mengagumkan"]}, {"en": "improve", "id": ["meningkatkan", "memperbaiki"]}, {"en": "improvement", "id": ["peningkatan", "perbaikan"]}, {"en": "in", "id": ["di", "dalam", "pada"]}, {"en": "inch", "id": ["inci"]}, {"en": "incident", "id": ["insiden", "kejadian"]}, {"en": "include", "id": ["termasuk", "mencakup"]}, {"en": "included", "id": ["termasuk"]}, {"en": "including", "id": ["termasuk"]}, {"en": "income", "id": ["pendapatan", "penghasilan"]}, {"en": "increase", "id": ["meningkatkan", "bertambah", "kenaikan"]}, {"en": "increasingly", "id": ["semakin", "makin"]}, {"en": "incredible", "id": ["luar biasa", "mengagumkan"]}, {"en": "incredibly", "id": ["sangat", "luar biasa"]}, {"en": "indeed", "id": ["memang", "sungguh"]}, {"en": "independent", "id": ["merdeka", "mandiri", "independen"]}, {"en": "indicate", "id": ["menunjukkan", "mengindikasikan"]}, {"en": "indirect", "id": ["tidak langsung", "tidak langsung"]}, {"en": "individual", "id": ["individu", "perorangan"]}, {"en": "indoor", "id": ["di dalam ruangan"]}, {"en": "indoors", "id": ["di dalam rumah", "di dalam ruangan"]}, {"en": "industrial", "id": ["industri", "perindustrian"]}, {"en": "industry", "id": ["industri"]}, {"en": "infection", "id": ["infeksi", "penyakit menular"]}, {"en": "influence", "id": ["pengaruh", "mempengaruhi"]}, {"en": "inform", "id": ["memberi tahu", "menginformasikan"]}, {"en": "informal", "id": ["tidak resmi", "informal"]}, {"en": "information", "id": ["informasi", "keterangan"]}, {"en": "ingredient", "id": ["bahan", "bahan masakan"]}, {"en": "initial", "id": ["awal", "inisial"]}, {"en": "initially", "id": ["pada awalnya", "pertama-tama"]}, {"en": "initiative", "id": ["inisiatif", "prakarsa"]}, {"en": "injure", "id": ["melukai", "mencedarai"]}, {"en": "injured", "id": ["terluka", "cedera"]}, {"en": "injury", "id": ["cedera", "luka"]}, {"en": "inner", "id": ["dalam", "batin"]}, {"en": "innocent", "id": ["tidak bersalah", "polos"]}, {"en": "inquiry", "id": ["pertanyaan", "penyelidikan"]}, {"en": "insect", "id": ["serangga", "insekta"]}, {"en": "inside", "id": ["di dalam", "dalam"]}, {"en": "insight", "id": ["wawasan", "pemahaman mendalam"]}, {"en": "insist", "id": ["bersikeras", "mendesak"]}, {"en": "inspire", "id": ["menginspirasi", "memberi inspirasi"]}, {"en": "install", "id": ["memasang", "menginstal"]}, {"en": "instance", "id": ["contoh", "misalnya"]}, {"en": "instead", "id": ["sebagai gantinya", "malah"]}, {"en": "institute", "id": ["lembaga", "institusi"]}, {"en": "institution", "id": ["lembaga", "institusi"]}, {"en": "instruction", "id": ["instruksi", "petunjuk"]}, {"en": "instructor", "id": ["instruktur", "pelatih"]}, {"en": "instrument", "id": ["instrumen", "alat"]}, {"en": "insurance", "id": ["asuransi"]}, {"en": "intelligence", "id": ["kecerdasan", "intelijen"]}, {"en": "intelligent", "id": ["cerdas", "pintar"]}, {"en": "intend", "id": ["bermaksud", "berniat"]}, {"en": "intended", "id": ["dimaksudkan", "bertujuan"]}, {"en": "intense", "id": ["intens", "sangat kuat"]}, {"en": "intention", "id": ["niat", "maksud", "tujuan"]}, {"en": "interest", "id": ["minat", "bunga", "kepentingan"]}, {"en": "interested", "id": ["tertarik"]}, {"en": "interesting", "id": ["menarik", "mengasyikkan"]}, {"en": "internal", "id": ["internal", "dalam"]}, {"en": "international", "id": ["internasional"]}, {"en": "internet", "id": ["internet"]}, {"en": "interpret", "id": ["menafsirkan", "menginterpretasikan"]}, {"en": "interrupt", "id": ["menginterupsi", "mengganggu"]}, {"en": "interview", "id": ["wawancara"]}, {"en": "into", "id": ["ke dalam", "masuk"]}, {"en": "introduce", "id": ["memperkenalkan"]}, {"en": "introduction", "id": ["perkenalan", "pendahuluan"]}, {"en": "invent", "id": ["menemukan", "menciptakan"]}, {"en": "invention", "id": ["penemuan", "invensi"]}, {"en": "invest", "id": ["berinvestasi", "menanamkan modal"]}, {"en": "investigate", "id": ["menyelidiki", "menginvestigasi"]}, {"en": "investigation", "id": ["penyelidikan", "investigasi"]}, {"en": "investment", "id": ["investasi"]}, {"en": "invitation", "id": ["undangan"]}, {"en": "invite", "id": ["mengundang"]}, {"en": "involve", "id": ["melibatkan"]}, {"en": "involved", "id": ["terlibat"]}, {"en": "iron", "id": ["besi", "setrika"]}, {"en": "island", "id": ["pulau"]}, {"en": "issue", "id": ["masalah", "isu", "terbitan"]}, {"en": "it", "id": ["itu", "ia"]}, {"en": "item", "id": ["barang", "item"]}, {"en": "its", "id": ["miliknya"]}, {"en": "itself", "id": ["dirinya sendiri"]}, {"en": "jacket", "id": ["jaket"]}, {"en": "jam", "id": ["macet", "selai"]}, {"en": "jazz", "id": ["jazz"]}, {"en": "jeans", "id": ["jins"]}, {"en": "jewelry", "id": ["perhiasan"]}, {"en": "job", "id": ["pekerjaan"]}, {"en": "join", "id": ["bergabung", "menggabungkan"]}, {"en": "joke", "id": ["lelucon", "bercanda"]}, {"en": "journal", "id": ["jurnal", "catatan"]}, {"en": "journalist", "id": ["jurnalis", "wartawan"]}, {"en": "journey", "id": ["perjalanan"]}, {"en": "joy", "id": ["kegembiraan", "sukacita"]}, {"en": "judge", "id": ["hakim", "menilai"]}, {"en": "judgment", "id": ["penilaian", "keputusan"]}, {"en": "juice", "id": ["jus", "sari buah"]}, {"en": "jump", "id": ["melompat", "lompatan"]}, {"en": "junior", "id": ["junior", "yunior"]}, {"en": "just", "id": ["baru saja", "hanya", "adil"]}, {"en": "justice", "id": ["keadilan"]}, {"en": "justify", "id": ["membenarkan", "membuktikan"]}, {"en": "keep", "id": ["menjaga", "mempertahankan", "menyimpan"]}, {"en": "key", "id": ["kunci", "utama"]}, {"en": "keyboard", "id": ["keyboard", "papan ketik"]}, {"en": "kick", "id": ["menendang", "tendangan"]}, {"en": "kid", "id": ["anak", "bocah"]}, {"en": "kill", "id": ["membunuh"]}, {"en": "killing", "id": ["pembunuhan"]}, {"en": "kilometer", "id": ["kilometer"]}, {"en": "king", "id": ["raja"]}, {"en": "kiss", "id": ["ciuman", "mencium"]}, {"en": "kitchen", "id": ["dapur"]}, {"en": "knee", "id": ["lutut"]}, {"en": "knife", "id": ["pisau"]}, {"en": "knock", "id": ["mengetuk", "memukul"]}, {"en": "know", "id": ["tahu", "mengetahui", "mengenal"]}, {"en": "knowledge", "id": ["pengetahuan", "ilmu"]}, {"en": "lab", "id": ["lab", "laboratorium"]}, {"en": "label", "id": ["label", "memberi label"]}, {"en": "labor", "id": ["tenaga kerja", "buruh"]}, {"en": "laboratory", "id": ["laboratorium"]}, {"en": "lack", "id": ["kekurangan", "tidak ada"]}, {"en": "lady", "id": ["wanita", "nyonya", "ibu"]}, {"en": "lake", "id": ["danau"]}, {"en": "lamp", "id": ["lampu"]}, {"en": "land", "id": ["tanah", "mendarat"]}, {"en": "landscape", "id": ["lanskap", "pemandangan"]}, {"en": "language", "id": ["bahasa"]}, {"en": "laptop", "id": ["laptop"]}, {"en": "large", "id": ["besar", "luas"]}, {"en": "largely", "id": ["sebagian besar", "secara luas"]}, {"en": "late", "id": ["terlambat", "terlambat"]}, {"en": "later", "id": ["kemudian", "nanti"]}, {"en": "latest", "id": ["terbaru", "terkini"]}, {"en": "laugh", "id": ["tertawa", "tawa"]}, {"en": "laughter", "id": ["tawa", "gelak tawa"]}, {"en": "launch", "id": ["meluncurkan", "peluncuran"]}, {"en": "law", "id": ["hukum", "undang-undang"]}, {"en": "lawyer", "id": ["pengacara", "ahli hukum"]}, {"en": "lay", "id": ["meletakkan", "berbaring"]}, {"en": "layer", "id": ["lapisan"]}, {"en": "lazy", "id": ["malas"]}, {"en": "leader", "id": ["pemimpin", "ketua"]}, {"en": "leadership", "id": ["kepemimpinan"]}, {"en": "leading", "id": ["terkemuka", "memimpin"]}, {"en": "leaf", "id": ["daun"]}, {"en": "league", "id": ["liga"]}, {"en": "lean", "id": ["bersandar", "kurus", "miring"]}, {"en": "learn", "id": ["belajar", "mempelajari"]}, {"en": "learning", "id": ["pembelajaran", "belajar"]}, {"en": "least", "id": ["paling sedikit", "setidaknya"]}, {"en": "leather", "id": ["kulit", "kulit sapi"]}, {"en": "leave", "id": ["meninggalkan", "pergi"]}, {"en": "lecture", "id": ["kuliah", "ceramah"]}, {"en": "left", "id": ["kiri", "pergi"]}, {"en": "leg", "id": ["kaki"]}, {"en": "legal", "id": ["sah", "legal", "hukum"]}, {"en": "leisure", "id": ["waktu luang", "rekreasi"]}, {"en": "lemon", "id": ["lemon", "jeruk nipis"]}, {"en": "lend", "id": ["meminjamkan"]}, {"en": "length", "id": ["panjang", "durasi"]}, {"en": "less", "id": ["kurang", "lebih sedikit"]}, {"en": "lesson", "id": ["pelajaran"]}, {"en": "let", "id": ["membiarkan", "mengizinkan"]}, {"en": "letter", "id": ["surat", "huruf"]}, {"en": "level", "id": ["tingkat", "level", "rata"]}, {"en": "library", "id": ["perpustakaan"]}, {"en": "license", "id": ["lisensi", "izin", "SIM"]}, {"en": "life", "id": ["kehidupan", "hidup"]}, {"en": "lifestyle", "id": ["gaya hidup"]}, {"en": "lift", "id": ["mengangkat", "lift"]}, {"en": "likely", "id": ["kemungkinan", "mungkin"]}, {"en": "limit", "id": ["batas", "membatasi"]}, {"en": "limited", "id": ["terbatas"]}, {"en": "line", "id": ["garis", "baris", "jalur"]}, {"en": "link", "id": ["tautan", "menghubungkan"]}, {"en": "lion", "id": ["singa"]}, {"en": "lip", "id": ["bibir"]}, {"en": "liquid", "id": ["cairan"]}, {"en": "list", "id": ["daftar"]}, {"en": "listen", "id": ["mendengarkan", "mendengar"]}, {"en": "listener", "id": ["pendengar"]}, {"en": "literature", "id": ["sastra", "literatur"]}, {"en": "little", "id": ["sedikit", "kecil"]}, {"en": "lively", "id": ["hidup", "bersemangat"]}, {"en": "living", "id": ["hidup", "kehidupan"]}, {"en": "load", "id": ["beban", "memuat"]}, {"en": "loan", "id": ["pinjaman"]}, {"en": "local", "id": ["lokal", "setempat"]}, {"en": "locate", "id": ["menemukan", "menempatkan"]}, {"en": "located", "id": ["terletak", "berada"]}, {"en": "location", "id": ["lokasi", "tempat"]}, {"en": "lock", "id": ["mengunci", "kunci"]}, {"en": "logical", "id": ["logis"]}, {"en": "lonely", "id": ["kesepian", "sendiri"]}, {"en": "look", "id": ["melihat", "tampak", "mencari"]}, {"en": "loose", "id": ["longgar", "lepas"]}, {"en": "lord", "id": ["tuan", "tuhan"]}, {"en": "lose", "id": ["kehilangan", "kalah"]}, {"en": "loss", "id": ["kehilangan", "kerugian"]}, {"en": "lost", "id": ["hilang", "tersesat"]}, {"en": "lot", "id": ["banyak", "lot"]}, {"en": "loud", "id": ["keras", "kencang"]}, {"en": "loudly", "id": ["dengan keras"]}, {"en": "love", "id": ["cinta", "mencintai"]}, {"en": "low", "id": ["rendah"]}, {"en": "lower", "id": ["menurunkan", "lebih rendah"]}, {"en": "luck", "id": ["keberuntungan", "nasib"]}, {"en": "lucky", "id": ["beruntung"]}, {"en": "lunch", "id": ["makan siang"]}, {"en": "lung", "id": ["paru-paru"]}, {"en": "luxury", "id": ["kemewahan", "mewah"]}, {"en": "machine", "id": ["mesin"]}, {"en": "mad", "id": ["gila", "marah"]}, {"en": "magazine", "id": ["majalah"]}, {"en": "magic", "id": ["sihir", "ajaib"]}, {"en": "mail", "id": ["surat", "email", "kirim"]}, {"en": "main", "id": ["utama"]}, {"en": "mainly", "id": ["terutama", "umumnya"]}, {"en": "maintain", "id": ["memelihara", "menjaga"]}, {"en": "major", "id": ["utama", "besar"]}, {"en": "majority", "id": ["mayoritas", "sebagian besar"]}, {"en": "make", "id": ["membuat", "menjadi"]}, {"en": "male", "id": ["laki-laki", "jantan"]}, {"en": "mall", "id": ["pusat perbelanjaan", "mall"]}, {"en": "man", "id": ["pria", "laki-laki"]}, {"en": "manage", "id": ["mengelola", "mengatur"]}, {"en": "management", "id": ["manajemen", "pengelolaan"]}, {"en": "manager", "id": ["manajer", "pengelola"]}, {"en": "manner", "id": ["cara", "sopan santun"]}, {"en": "many", "id": ["banyak"]}, {"en": "map", "id": ["peta"]}, {"en": "mark", "id": ["tanda", "nilai", "menandai"]}, {"en": "market", "id": ["pasar"]}, {"en": "marketing", "id": ["pemasaran", "marketing"]}, {"en": "marriage", "id": ["pernikahan", "perkawinan"]}, {"en": "married", "id": ["menikah"]}, {"en": "marry", "id": ["menikah", "menikahi"]}, {"en": "mass", "id": ["massa", "banyak"]}, {"en": "massive", "id": ["sangat besar", "masif"]}, {"en": "master", "id": ["master", "tuan", "menguasai"]}, {"en": "matching", "id": ["cocok", "sesuai"]}, {"en": "material", "id": ["bahan", "materi"]}, {"en": "math", "id": ["matematika"]}, {"en": "mathematics", "id": ["matematika"]}, {"en": "matter", "id": ["masalah", "hal", "penting"]}, {"en": "maximum", "id": ["maksimum", "paling banyak"]}, {"en": "maybe", "id": ["mungkin", "barangkali"]}, {"en": "mayor", "id": ["walikota", "bupati"]}, {"en": "me", "id": ["saya", "aku"]}, {"en": "meal", "id": ["makanan", "makan"]}, {"en": "mean", "id": ["berarti", "maksud", "jahat"]}, {"en": "meaning", "id": ["arti", "makna"]}, {"en": "means", "id": ["cara", "berarti"]}, {"en": "meanwhile", "id": ["sementara itu", "pada saat yang sama"]}, {"en": "measure", "id": ["mengukur", "ukuran"]}, {"en": "measurement", "id": ["pengukuran", "ukuran"]}, {"en": "meat", "id": ["daging"]}, {"en": "media", "id": ["media"]}, {"en": "medical", "id": ["medis", "kedokteran"]}, {"en": "medicine", "id": ["obat", "kedokteran"]}, {"en": "medium", "id": ["sedang", "menengah", "media"]}, {"en": "meet", "id": ["bertemu", "memenuhi"]}, {"en": "meeting", "id": ["rapat", "pertemuan"]}, {"en": "melt", "id": ["meleleh", "mencair"]}, {"en": "member", "id": ["anggota"]}, {"en": "memory", "id": ["ingatan", "memori"]}, {"en": "mental", "id": ["mental", "kejiwaan"]}, {"en": "mention", "id": ["menyebutkan"]}, {"en": "menu", "id": ["menu", "daftar makanan"]}, {"en": "mess", "id": ["kekacauan", "berantakan"]}, {"en": "message", "id": ["pesan", "kabar"]}, {"en": "metal", "id": ["logam", "metal"]}, {"en": "meter", "id": ["meter"]}, {"en": "method", "id": ["metode", "cara"]}, {"en": "middle", "id": ["tengah", "pertengahan"]}, {"en": "midnight", "id": ["tengah malam"]}, {"en": "mild", "id": ["ringan", "lembut"]}, {"en": "mile", "id": ["mil"]}, {"en": "military", "id": ["militer", "angkatan bersenjata"]}, {"en": "milk", "id": ["susu"]}, {"en": "mind", "id": ["pikiran", "keberatan", "menjaga"]}, {"en": "mineral", "id": ["mineral"]}, {"en": "minimum", "id": ["minimum", "paling sedikit"]}, {"en": "minister", "id": ["menteri", "pendeta"]}, {"en": "minor", "id": ["kecil", "tidak penting"]}, {"en": "minority", "id": ["minoritas"]}, {"en": "mirror", "id": ["cermin"]}, {"en": "miss", "id": ["nona", "merindukan", "melewatkan"]}, {"en": "missing", "id": ["hilang", "tidak ada"]}, {"en": "mission", "id": ["misi"]}, {"en": "mistake", "id": ["kesalahan", "kekeliruan"]}, {"en": "mix", "id": ["mencampur", "campuran"]}, {"en": "mixed", "id": ["campuran", "beragam"]}, {"en": "mixture", "id": ["campuran"]}, {"en": "modal", "id": ["modal", "kata modal"]}, {"en": "model", "id": ["model", "contoh"]}, {"en": "modern", "id": ["modern"]}, {"en": "modify", "id": ["mengubah", "memodifikasi"]}, {"en": "mom", "id": ["ibu", "mama"]}, {"en": "moment", "id": ["momen", "saat"]}, {"en": "money", "id": ["uang"]}, {"en": "monitor", "id": ["monitor", "memantau"]}, {"en": "monkey", "id": ["monyet"]}, {"en": "month", "id": ["bulan"]}, {"en": "mood", "id": ["suasana hati", "mood"]}, {"en": "moon", "id": ["bulan"]}, {"en": "moral", "id": ["moral", "etika"]}, {"en": "more", "id": ["lebih", "lebih banyak"]}, {"en": "morning", "id": ["pagi"]}, {"en": "most", "id": ["paling", "terbanyak"]}, {"en": "mostly", "id": ["kebanyakan", "umumnya"]}, {"en": "mother", "id": ["ibu"]}, {"en": "motor", "id": ["motor", "mesin"]}, {"en": "motorcycle", "id": ["sepeda motor", "motor"]}, {"en": "mount", "id": ["mendaki", "gunung"]}, {"en": "mountain", "id": ["gunung"]}, {"en": "mouse", "id": ["tikus", "mouse komputer"]}, {"en": "mouth", "id": ["mulut"]}, {"en": "move", "id": ["bergerak", "pindah", "langkah"]}, {"en": "movement", "id": ["gerakan", "pergerakan"]}, {"en": "movie", "id": ["film"]}, {"en": "much", "id": ["banyak", "sangat"]}, {"en": "mud", "id": ["lumpur"]}, {"en": "multiple", "id": ["banyak", "berganda"]}, {"en": "multiply", "id": ["mengalikan", "berkembang biak"]}, {"en": "murder", "id": ["pembunuhan", "membunuh"]}, {"en": "muscle", "id": ["otot"]}, {"en": "museum", "id": ["museum"]}, {"en": "music", "id": ["musik"]}, {"en": "musical", "id": ["musikal", "bermusik"]}, {"en": "musician", "id": ["musisi", "pemusik"]}, {"en": "my", "id": ["saya punya", "milikku"]}, {"en": "myself", "id": ["diri saya sendiri"]}, {"en": "mysterious", "id": ["misterius", "penuh misteri"]}, {"en": "mystery", "id": ["misteri", "teka-teki"]}, {"en": "nail", "id": ["paku", "kuku"]}, {"en": "name", "id": ["nama", "menamai"]}, {"en": "narrative", "id": ["narasi", "cerita"]}, {"en": "narrow", "id": ["sempit"]}, {"en": "nation", "id": ["bangsa", "negara"]}, {"en": "national", "id": ["nasional"]}, {"en": "native", "id": ["asli", "pribumi"]}, {"en": "natural", "id": ["alami", "natural"]}, {"en": "naturally", "id": ["secara alami", "tentu saja"]}, {"en": "nature", "id": ["alam", "sifat"]}, {"en": "near", "id": ["dekat"]}, {"en": "nearly", "id": ["hampir", "nyaris"]}, {"en": "neat", "id": ["rapi", "bersih"]}, {"en": "necessarily", "id": ["tidak harus", "dengan sendirinya"]}, {"en": "necessary", "id": ["perlu", "diperlukan"]}, {"en": "neck", "id": ["leher"]}, {"en": "need", "id": ["butuh", "memerlukan", "kebutuhan"]}, {"en": "needle", "id": ["jarum"]}, {"en": "negative", "id": ["negatif"]}, {"en": "neighbor", "id": ["tetangga"]}, {"en": "neighborhood", "id": ["lingkungan", "sekitar"]}, {"en": "neither", "id": ["keduanya tidak", "bukan salah satu"]}, {"en": "nerve", "id": ["saraf", "keberanian"]}, {"en": "nervous", "id": ["gugup", "cemas"]}, {"en": "net", "id": ["jaring", "net", "bersih"]}, {"en": "network", "id": ["jaringan"]}, {"en": "never", "id": ["tidak pernah"]}, {"en": "nevertheless", "id": ["meskipun demikian", "namun"]}, {"en": "new", "id": ["baru"]}, {"en": "news", "id": ["berita", "kabar"]}, {"en": "newspaper", "id": ["koran", "surat kabar"]}, {"en": "next", "id": ["berikutnya", "selanjutnya"]}, {"en": "nice", "id": ["bagus", "menyenangkan"]}, {"en": "night", "id": ["malam"]}, {"en": "nightmare", "id": ["mimpi buruk"]}, {"en": "nobody", "id": ["tidak ada yang", "tidak seorangpun"]}, {"en": "noise", "id": ["kebisingan", "suara"]}, {"en": "noisy", "id": ["bising", "ramai"]}, {"en": "none", "id": ["tidak ada satupun"]}, {"en": "nor", "id": ["pun tidak", "juga tidak"]}, {"en": "normal", "id": ["normal", "biasa"]}, {"en": "normally", "id": ["biasanya", "normalnya"]}, {"en": "north", "id": ["utara"]}, {"en": "northern", "id": ["utara", "bagian utara"]}, {"en": "nose", "id": ["hidung"]}, {"en": "not", "id": ["tidak", "bukan"]}, {"en": "note", "id": ["catatan", "mencatat", "memperhatikan"]}, {"en": "nothing", "id": ["tidak ada sesuatupun"]}, {"en": "notice", "id": ["memperhatikan", "pemberitahuan"]}, {"en": "notion", "id": ["gagasan", "pengertian"]}, {"en": "novel", "id": ["novel", "baru"]}, {"en": "now", "id": ["sekarang", "kini"]}, {"en": "nowhere", "id": ["tidak di mana-mana"]}, {"en": "nuclear", "id": ["nuklir"]}, {"en": "number", "id": ["angka", "nomor"]}, {"en": "numerous", "id": ["banyak", "berjumlah besar"]}, {"en": "nurse", "id": ["perawat"]}, {"en": "nut", "id": ["kacang", "mur"]}, {"en": "obey", "id": ["mematuhi", "taat"]}, {"en": "object", "id": ["benda", "tujuan", "menolak"]}, {"en": "objective", "id": ["tujuan", "sasaran", "obyektif"]}, {"en": "obligation", "id": ["kewajiban"]}, {"en": "observation", "id": ["pengamatan", "observasi"]}, {"en": "observe", "id": ["mengamati", "menghormati"]}, {"en": "obtain", "id": ["memperoleh", "mendapatkan"]}, {"en": "obvious", "id": ["jelas", "nyata"]}, {"en": "obviously", "id": ["jelas", "tentu saja"]}, {"en": "occasion", "id": ["kesempatan", "peristiwa"]}, {"en": "occasionally", "id": ["kadang-kadang", "sesekali"]}, {"en": "occur", "id": ["terjadi", "berlangsung"]}, {"en": "ocean", "id": ["samudra", "lautan"]}, {"en": "odd", "id": ["aneh", "ganjil"]}, {"en": "of", "id": ["dari", "milik"]}, {"en": "off", "id": ["mati", "pergi"]}, {"en": "offend", "id": ["menyinggung", "menyakiti"]}, {"en": "offense", "id": ["pelanggaran", "serangan"]}, {"en": "offensive", "id": ["ofensif", "menyinggung"]}, {"en": "offer", "id": ["menawarkan", "tawaran"]}, {"en": "office", "id": ["kantor"]}, {"en": "officer", "id": ["petugas", "perwira"]}, {"en": "official", "id": ["resmi", "pejabat"]}, {"en": "often", "id": ["sering", "kerap"]}, {"en": "oil", "id": ["minyak"]}, {"en": "old", "id": ["tua", "lama"]}, {"en": "on", "id": ["di", "pada", "menyala"]}, {"en": "once", "id": ["sekali", "pernah", "setelah"]}, {"en": "one", "id": ["satu"]}, {"en": "onion", "id": ["bawang merah", "bawang"]}, {"en": "online", "id": ["daring", "online"]}, {"en": "only", "id": ["hanya", "saja"]}, {"en": "onto", "id": ["ke atas", "ke"]}, {"en": "open", "id": ["terbuka", "membuka"]}, {"en": "opening", "id": ["pembukaan", "lubang"]}, {"en": "operate", "id": ["mengoperasikan", "beroperasi"]}, {"en": "operation", "id": ["operasi"]}, {"en": "opinion", "id": ["pendapat", "opini"]}, {"en": "opponent", "id": ["lawan", "pesaing"]}, {"en": "opportunity", "id": ["kesempatan", "peluang"]}, {"en": "oppose", "id": ["menentang", "melawan"]}, {"en": "opposed", "id": ["menentang", "berlawanan"]}, {"en": "opposite", "id": ["berlawanan", "sebaliknya"]}, {"en": "opposition", "id": ["oposisi", "penentang"]}, {"en": "option", "id": ["pilihan"]}, {"en": "or", "id": ["atau"]}, {"en": "orange", "id": ["oranye", "jeruk"]}, {"en": "order", "id": ["pesanan", "memesan", "urutan"]}, {"en": "ordinary", "id": ["biasa", "umum"]}, {"en": "organ", "id": ["organ"]}, {"en": "organization", "id": ["organisasi"]}, {"en": "organize", "id": ["mengorganisir", "menata"]}, {"en": "organized", "id": ["terorganisir", "teratur"]}, {"en": "organizer", "id": ["penyelenggara", "organisir"]}, {"en": "origin", "id": ["asal", "asal-usul"]}, {"en": "original", "id": ["asli", "orisinal"]}, {"en": "originally", "id": ["pada awalnya", "aslinya"]}, {"en": "other", "id": ["lain", "yang lain"]}, {"en": "otherwise", "id": ["sebaliknya", "kalau tidak"]}, {"en": "our", "id": ["kami punya", "milik kami"]}, {"en": "ours", "id": ["milik kami"]}, {"en": "ourselves", "id": ["diri kami sendiri"]}, {"en": "out", "id": ["keluar"]}, {"en": "outcome", "id": ["hasil", "akibat"]}, {"en": "outdoor", "id": ["di luar ruangan"]}, {"en": "outdoors", "id": ["di luar rumah"]}, {"en": "outer", "id": ["luar", "bagian luar"]}, {"en": "outline", "id": ["garis besar", "kerangka"]}, {"en": "outside", "id": ["di luar"]}, {"en": "oven", "id": ["oven", "kompor"]}, {"en": "over", "id": ["di atas", "selesai"]}, {"en": "overall", "id": ["secara keseluruhan"]}, {"en": "overseas", "id": ["luar negeri", "di seberang lautan"]}, {"en": "owe", "id": ["berhutang"]}, {"en": "own", "id": ["sendiri", "memiliki"]}, {"en": "owner", "id": ["pemilik"]}, {"en": "pace", "id": ["kecepatan", "langkah"]}, {"en": "pack", "id": ["mengemas", "paket"]}, {"en": "package", "id": ["paket", "bungkusan"]}, {"en": "page", "id": ["halaman"]}, {"en": "pain", "id": ["rasa sakit", "nyeri"]}, {"en": "painful", "id": ["menyakitkan"]}, {"en": "paint", "id": ["cat", "melukis"]}, {"en": "painter", "id": ["pelukis", "pengecat"]}, {"en": "painting", "id": ["lukisan", "pengecatan"]}, {"en": "pair", "id": ["pasangan", "sepasang"]}, {"en": "palace", "id": ["istana"]}, {"en": "pale", "id": ["pucat"]}, {"en": "pan", "id": ["wajan", "panci"]}, {"en": "panel", "id": ["panel"]}, {"en": "pants", "id": ["celana panjang"]}, {"en": "paper", "id": ["kertas", "makalah"]}, {"en": "paragraph", "id": ["paragraf"]}, {"en": "parent", "id": ["orang tua"]}, {"en": "park", "id": ["taman", "parkir"]}, {"en": "parking", "id": ["parkir"]}, {"en": "part", "id": ["bagian", "peran"]}, {"en": "participant", "id": ["peserta"]}, {"en": "participate", "id": ["berpartisipasi", "ikut serta"]}, {"en": "particular", "id": ["khusus", "tertentu"]}, {"en": "particularly", "id": ["terutama", "khususnya"]}, {"en": "partly", "id": ["sebagian", "agak"]}, {"en": "partner", "id": ["mitra", "pasangan"]}, {"en": "party", "id": ["pesta", "partai"]}, {"en": "pass", "id": ["melewati", "lulus"]}, {"en": "passage", "id": ["lorong", "bagian teks"]}, {"en": "passenger", "id": ["penumpang"]}, {"en": "passion", "id": ["semangat", "kegairahan"]}, {"en": "passport", "id": ["paspor"]}, {"en": "past", "id": ["lalu", "masa lalu"]}, {"en": "path", "id": ["jalan", "jalur"]}, {"en": "patient", "id": ["pasien", "sabar"]}, {"en": "pattern", "id": ["pola", "corak"]}, {"en": "pay", "id": ["membayar", "gaji"]}, {"en": "payment", "id": ["pembayaran"]}, {"en": "peace", "id": ["kedamaian", "ketenangan"]}, {"en": "peaceful", "id": ["damai", "tenteram"]}, {"en": "pen", "id": ["pena"]}, {"en": "pencil", "id": ["pensil"]}, {"en": "penny", "id": ["sen", "penny"]}, {"en": "people", "id": ["orang-orang", "masyarakat"]}, {"en": "pepper", "id": ["merica", "paprika"]}, {"en": "per", "id": ["per", "setiap"]}, {"en": "percentage", "id": ["persentase"]}, {"en": "perfect", "id": ["sempurna"]}, {"en": "perfectly", "id": ["dengan sempurna", "secara sempurna"]}, {"en": "perform", "id": ["tampil", "melakukan"]}, {"en": "performance", "id": ["penampilan", "kinerja"]}, {"en": "perhaps", "id": ["mungkin", "barangkali"]}, {"en": "period", "id": ["periode", "masa"]}, {"en": "permanent", "id": ["permanen", "tetap"]}, {"en": "permission", "id": ["izin"]}, {"en": "permit", "id": ["mengizinkan", "izin"]}, {"en": "person", "id": ["orang"]}, {"en": "personal", "id": ["pribadi", "personal"]}, {"en": "personality", "id": ["kepribadian"]}, {"en": "personally", "id": ["secara pribadi"]}, {"en": "perspective", "id": ["perspektif", "sudut pandang"]}, {"en": "persuade", "id": ["membujuk", "meyakinkan"]}, {"en": "pet", "id": ["hewan peliharaan"]}, {"en": "phase", "id": ["fase", "tahap"]}, {"en": "phenomenon", "id": ["fenomena"]}, {"en": "philosophy", "id": ["filsafat"]}, {"en": "phone", "id": ["telepon", "ponsel"]}, {"en": "photo", "id": ["foto"]}, {"en": "photograph", "id": ["foto", "memotret"]}, {"en": "photographer", "id": ["fotografer"]}, {"en": "photography", "id": ["fotografi"]}, {"en": "phrase", "id": ["frasa", "ungkapan"]}, {"en": "physical", "id": ["fisik"]}, {"en": "physics", "id": ["fisika"]}, {"en": "piano", "id": ["piano"]}, {"en": "pick", "id": ["memilih", "memetik"]}, {"en": "picture", "id": ["gambar", "foto"]}, {"en": "piece", "id": ["potong", "bagian"]}, {"en": "pig", "id": ["babi"]}, {"en": "pile", "id": ["tumpukan", "menumpuk"]}, {"en": "pilot", "id": ["pilot", "percobaan"]}, {"en": "pin", "id": ["pin", "jarum pentul"]}, {"en": "pink", "id": ["merah muda", "pink"]}, {"en": "pipe", "id": ["pipa"]}, {"en": "pitch", "id": ["lapangan", "nada"]}, {"en": "place", "id": ["tempat", "meletakkan"]}, {"en": "plain", "id": ["polos", "sederhana"]}, {"en": "plan", "id": ["rencana", "merencanakan"]}, {"en": "plane", "id": ["pesawat", "bidang"]}, {"en": "planet", "id": ["planet"]}, {"en": "planning", "id": ["perencanaan"]}, {"en": "plant", "id": ["tanaman", "pabrik"]}, {"en": "plastic", "id": ["plastik"]}, {"en": "plate", "id": ["piring", "plat"]}, {"en": "platform", "id": ["platform", "panggung"]}, {"en": "play", "id": ["bermain", "memainkan"]}, {"en": "player", "id": ["pemain"]}, {"en": "pleasant", "id": ["menyenangkan", "enak"]}, {"en": "pleased", "id": ["senang", "puas"]}, {"en": "pleasure", "id": ["kesenangan"]}, {"en": "plenty", "id": ["banyak", "berlimpah"]}, {"en": "plot", "id": ["plot", "alur cerita"]}, {"en": "pocket", "id": ["saku"]}, {"en": "poem", "id": ["puisi", "syair"]}, {"en": "poet", "id": ["penyair", "pujangga"]}, {"en": "poetry", "id": ["puisi"]}, {"en": "point", "id": ["poin", "titik", "menunjuk"]}, {"en": "pointed", "id": ["runcing", "mengarah"]}, {"en": "poison", "id": ["racun"]}, {"en": "poisonous", "id": ["beracun"]}, {"en": "police", "id": ["polisi"]}, {"en": "policeman", "id": ["polisi", "anggota polisi"]}, {"en": "policy", "id": ["kebijakan"]}, {"en": "polite", "id": ["sopan"]}, {"en": "political", "id": ["politik"]}, {"en": "politician", "id": ["politikus", "politisi"]}, {"en": "politics", "id": ["politik"]}, {"en": "pollution", "id": ["polusi", "pencemaran"]}, {"en": "pool", "id": ["kolam", "kolam renang"]}, {"en": "poor", "id": ["miskin", "buruk"]}, {"en": "pop", "id": ["pop", "muncul"]}, {"en": "popular", "id": ["populer", "terkenal"]}, {"en": "popularity", "id": ["kepopuleran", "popularitas"]}, {"en": "population", "id": ["penduduk", "populasi"]}, {"en": "port", "id": ["pelabuhan"]}, {"en": "portrait", "id": ["potret", "gambar"]}, {"en": "pose", "id": ["pose", "gaya"]}, {"en": "position", "id": ["posisi", "jabatan"]}, {"en": "positive", "id": ["positif"]}, {"en": "possess", "id": ["memiliki", "menguasai"]}, {"en": "possession", "id": ["kepemilikan", "milik"]}, {"en": "possibility", "id": ["kemungkinan"]}, {"en": "possible", "id": ["mungkin", "bisa"]}, {"en": "possibly", "id": ["mungkin"]}, {"en": "post", "id": ["pos", "jabatan", "memposting"]}, {"en": "poster", "id": ["poster"]}, {"en": "pot", "id": ["pot", "panci"]}, {"en": "potato", "id": ["kentang"]}, {"en": "potential", "id": ["potensi", "kemampuan"]}, {"en": "pound", "id": ["pon", "memukul"]}, {"en": "pour", "id": ["menuangkan", "mencurahkan"]}, {"en": "poverty", "id": ["kemiskinan"]}, {"en": "powder", "id": ["bubuk", "tepung"]}, {"en": "power", "id": ["kekuatan", "daya"]}, {"en": "powerful", "id": ["kuat", "berkuasa"]}, {"en": "practical", "id": ["praktis"]}, {"en": "practice", "id": ["praktek", "berlatih"]}, {"en": "praise", "id": ["pujian", "memuji"]}, {"en": "pray", "id": ["berdoa"]}, {"en": "prayer", "id": ["doa"]}, {"en": "predict", "id": ["memprediksi", "meramalkan"]}, {"en": "prediction", "id": ["prediksi", "ramalan"]}, {"en": "prefer", "id": ["lebih suka", "menyukai"]}, {"en": "pregnant", "id": ["hamil"]}, {"en": "preparation", "id": ["persiapan"]}, {"en": "prepare", "id": ["mempersiapkan", "menyiapkan"]}, {"en": "prepared", "id": ["siap", "disiapkan"]}, {"en": "presence", "id": ["kehadiran", "keberadaan"]}, {"en": "present", "id": ["hadir", "saat ini", "hadiah", "mempersembahkan"]}, {"en": "presentation", "id": ["presentasi"]}, {"en": "preserve", "id": ["melestarikan", "mempertahankan"]}, {"en": "president", "id": ["presiden"]}, {"en": "press", "id": ["pers", "menekan", "mencet"]}, {"en": "pressure", "id": ["tekanan"]}, {"en": "pretend", "id": ["berpura-pura"]}, {"en": "pretty", "id": ["cantik", "cukup"]}, {"en": "prevent", "id": ["mencegah"]}, {"en": "previous", "id": ["sebelumnya", "terdahulu"]}, {"en": "previously", "id": ["sebelumnya"]}, {"en": "price", "id": ["harga"]}, {"en": "priest", "id": ["pendeta", "imam"]}, {"en": "primary", "id": ["utama", "primer"]}, {"en": "prime", "id": ["utama", "perdana"]}, {"en": "prince", "id": ["pangeran"]}, {"en": "princess", "id": ["putri"]}, {"en": "principal", "id": ["kepala sekolah", "utama"]}, {"en": "principle", "id": ["prinsip", "asas"]}, {"en": "print", "id": ["mencetak", "cetakan"]}, {"en": "printer", "id": ["printer", "mesin cetak"]}, {"en": "printing", "id": ["percetakan"]}, {"en": "priority", "id": ["prioritas"]}, {"en": "prison", "id": ["penjara"]}, {"en": "prisoner", "id": ["tahanan", "narapidana"]}, {"en": "privacy", "id": ["privasi"]}, {"en": "private", "id": ["pribadi", "swasta"]}, {"en": "prize", "id": ["hadiah", "penghargaan"]}, {"en": "probably", "id": ["mungkin", "kemungkinan besar"]}, {"en": "problem", "id": ["masalah", "problem"]}, {"en": "procedure", "id": ["prosedur", "langkah"]}, {"en": "process", "id": ["proses"]}, {"en": "produce", "id": ["menghasilkan", "memproduksi"]}, {"en": "producer", "id": ["produser", "penghasil"]}, {"en": "product", "id": ["produk"]}, {"en": "production", "id": ["produksi"]}, {"en": "profession", "id": ["profesi", "pekerjaan"]}, {"en": "professional", "id": ["profesional"]}, {"en": "professor", "id": ["profesor"]}, {"en": "profile", "id": ["profil"]}, {"en": "profit", "id": ["keuntungan", "laba"]}, {"en": "program", "id": ["program"]}, {"en": "progress", "id": ["kemajuan", "perkembangan"]}, {"en": "project", "id": ["proyek"]}, {"en": "promise", "id": ["janji", "berjanji"]}, {"en": "promote", "id": ["mempromosikan"]}, {"en": "pronounce", "id": ["mengucapkan", "menyatakan"]}, {"en": "proof", "id": ["bukti"]}, {"en": "proper", "id": ["tepat", "benar"]}, {"en": "properly", "id": ["dengan benar", "dengan tepat"]}, {"en": "property", "id": ["properti", "milik"]}, {"en": "proposal", "id": ["proposal", "usulan"]}, {"en": "propose", "id": ["mengusulkan", "melamar"]}, {"en": "prospect", "id": ["prospek", "peluang"]}, {"en": "protect", "id": ["melindungi"]}, {"en": "protection", "id": ["perlindungan"]}, {"en": "protest", "id": ["protes", "unjuk rasa"]}, {"en": "proud", "id": ["bangga"]}, {"en": "prove", "id": ["membuktikan"]}, {"en": "provide", "id": ["menyediakan", "memberikan"]}, {"en": "psychologist", "id": ["psikolog"]}, {"en": "psychology", "id": ["psikologi"]}, {"en": "public", "id": ["publik", "masyarakat"]}, {"en": "publication", "id": ["publikasi", "terbitan"]}, {"en": "publish", "id": ["menerbitkan"]}, {"en": "pull", "id": ["menarik"]}, {"en": "punish", "id": ["menghukum"]}, {"en": "punishment", "id": ["hukuman"]}, {"en": "purchase", "id": ["pembelian", "membeli"]}, {"en": "pure", "id": ["murni", "bersih"]}, {"en": "purple", "id": ["ungu"]}, {"en": "purpose", "id": ["tujuan", "maksud"]}, {"en": "pursue", "id": ["mengejar", "mengejar"]}, {"en": "push", "id": ["mendorong"]}, {"en": "put", "id": ["meletakkan", "menempatkan"]}, {"en": "qualification", "id": ["kualifikasi"]}, {"en": "qualified", "id": ["berkualifikasi", "memenuhi syarat"]}, {"en": "qualify", "id": ["memenuhi syarat", "kualifikasi"]}, {"en": "quality", "id": ["kualitas"]}, {"en": "quantity", "id": ["kuantitas", "jumlah"]}, {"en": "quarter", "id": ["seperempat", "kuartal"]}, {"en": "queen", "id": ["ratu"]}, {"en": "question", "id": ["pertanyaan", "mempertanyakan"]}, {"en": "quick", "id": ["cepat"]}, {"en": "quickly", "id": ["dengan cepat"]}, {"en": "quiet", "id": ["tenang", "diam"]}, {"en": "quietly", "id": ["dengan tenang", "perlahan"]}, {"en": "quit", "id": ["berhenti", "keluar"]}, {"en": "quite", "id": ["cukup", "agak"]}, {"en": "quotation", "id": ["kutipan"]}, {"en": "quote", "id": ["mengutip", "kutipan"]}, {"en": "racing", "id": ["balapan", "kompetisi"]}, {"en": "radio", "id": ["radio"]}, {"en": "railroad", "id": ["rel kereta api"]}, {"en": "rain", "id": ["hujan"]}, {"en": "raise", "id": ["menaikkan", "membesarkan"]}, {"en": "range", "id": ["rentang", "jangkauan"]}, {"en": "rank", "id": ["peringkat", "pangkat"]}, {"en": "rapid", "id": ["cepat"]}, {"en": "rapidly", "id": ["dengan cepat"]}, {"en": "rare", "id": ["langka", "jarang"]}, {"en": "rarely", "id": ["jarang"]}, {"en": "rate", "id": ["tingkat", "tarif"]}, {"en": "rather", "id": ["lebih suka", "agak"]}, {"en": "raw", "id": ["mentah", "belum diolah"]}, {"en": "reach", "id": ["mencapai", "menjangkau"]}, {"en": "react", "id": ["bereaksi", "merespons"]}, {"en": "reaction", "id": ["reaksi", "respons"]}, {"en": "read", "id": ["membaca"]}, {"en": "reader", "id": ["pembaca"]}, {"en": "reading", "id": ["membaca", "bacaan"]}, {"en": "ready", "id": ["siap"]}, {"en": "real", "id": ["nyata", "sungguh"]}, {"en": "realistic", "id": ["realistis"]}, {"en": "reality", "id": ["kenyataan", "realita"]}, {"en": "realize", "id": ["menyadari", "mewujudkan"]}, {"en": "really", "id": ["sungguh", "benar-benar"]}, {"en": "reason", "id": ["alasan", "sebab"]}, {"en": "reasonable", "id": ["masuk akal", "wajar"]}, {"en": "recall", "id": ["mengingat kembali"]}, {"en": "receipt", "id": ["kuitansi", "tanda terima"]}, {"en": "receive", "id": ["menerima"]}, {"en": "recent", "id": ["baru-baru ini", "terkini"]}, {"en": "recently", "id": ["baru-baru ini"]}, {"en": "reception", "id": ["penerimaan", "resepsi"]}, {"en": "recipe", "id": ["resep"]}, {"en": "recognize", "id": ["mengenali", "mengakui"]}, {"en": "recommend", "id": ["merekomendasikan"]}, {"en": "recommendation", "id": ["rekomendasi"]}, {"en": "record", "id": ["rekaman", "mencatat"]}, {"en": "recording", "id": ["rekaman"]}, {"en": "recover", "id": ["pulih", "sembuh"]}, {"en": "recycle", "id": ["mendaur ulang"]}, {"en": "red", "id": ["merah"]}, {"en": "reduce", "id": ["mengurangi", "menurunkan"]}, {"en": "reduction", "id": ["pengurangan", "penurunan"]}, {"en": "refer", "id": ["merujuk", "mengacu"]}, {"en": "reference", "id": ["referensi"]}, {"en": "reflect", "id": ["mencerminkan", "merefleksikan"]}, {"en": "refrigerator", "id": ["lemari es", "kulkas"]}, {"en": "regard", "id": ["menghormati", "menganggap"]}, {"en": "region", "id": ["wilayah", "daerah"]}, {"en": "regional", "id": ["regional", "wilayah"]}, {"en": "register", "id": ["mendaftar", "mendaftarkan"]}, {"en": "regret", "id": ["menyesal", "penyesalan"]}, {"en": "regular", "id": ["biasa", "teratur"]}, {"en": "regularly", "id": ["secara teratur"]}, {"en": "regulation", "id": ["peraturan", "regulasi"]}, {"en": "reject", "id": ["menolak"]}, {"en": "relate", "id": ["menghubungkan", "berkaitan"]}, {"en": "related", "id": ["berkaitan", "terkait"]}, {"en": "relation", "id": ["hubungan", "pertalian"]}, {"en": "relationship", "id": ["hubungan", "relasi"]}, {"en": "relative", "id": ["saudara", "relatif"]}, {"en": "relatively", "id": ["relatif"]}, {"en": "relax", "id": ["bersantai", "relaks"]}, {"en": "relaxed", "id": ["santai", "rileks"]}, {"en": "relaxing", "id": ["menyantai", "santai"]}, {"en": "release", "id": ["melepaskan", "rilis"]}, {"en": "relevant", "id": ["relevan", "berkaitan"]}, {"en": "reliable", "id": ["dapat diandalkan"]}, {"en": "relief", "id": ["lega", "kelegaan"]}, {"en": "religion", "id": ["agama"]}, {"en": "religious", "id": ["agama", "beragama"]}, {"en": "rely", "id": ["mengandalkan", "bergantung"]}, {"en": "remain", "id": ["tetap", "tinggal"]}, {"en": "remark", "id": ["komentar", "berkomentar"]}, {"en": "remember", "id": ["mengingat", "ingat"]}, {"en": "remind", "id": ["mengingatkan"]}, {"en": "remote", "id": ["jarak jauh", "terpencil"]}, {"en": "remove", "id": ["menghapus", "menghilangkan"]}, {"en": "rent", "id": ["menyewa", "sewa"]}, {"en": "repair", "id": ["memperbaiki", "perbaikan"]}, {"en": "repeat", "id": ["mengulangi", "mengulang"]}, {"en": "repeated", "id": ["berulang", "diulang"]}, {"en": "replace", "id": ["menggantikan"]}, {"en": "reply", "id": ["membalas", "balasan"]}, {"en": "report", "id": ["laporan", "melaporkan"]}, {"en": "reporter", "id": ["reporter", "wartawan"]}, {"en": "represent", "id": ["mewakili"]}, {"en": "representative", "id": ["wakil", "perwakilan"]}, {"en": "reputation", "id": ["reputasi"]}, {"en": "request", "id": ["permintaan", "meminta"]}, {"en": "require", "id": ["memerlukan", "mengharuskan"]}, {"en": "requirement", "id": ["persyaratan"]}, {"en": "rescue", "id": ["menyelamatkan", "penyelamatan"]}, {"en": "research", "id": ["penelitian", "meneliti"]}, {"en": "researcher", "id": ["peneliti"]}, {"en": "reservation", "id": ["pemesanan", "reservasi"]}, {"en": "reserve", "id": ["memesan", "cadangan"]}, {"en": "resident", "id": ["warga", "penghuni"]}, {"en": "resist", "id": ["melawan", "tahan"]}, {"en": "resolve", "id": ["menyelesaikan"]}, {"en": "resort", "id": ["resor"]}, {"en": "resource", "id": ["sumber daya"]}, {"en": "respect", "id": ["menghormati", "hormat"]}, {"en": "respond", "id": ["merespons", "menjawab"]}, {"en": "response", "id": ["respons", "tanggapan"]}, {"en": "responsibility", "id": ["tanggung jawab"]}, {"en": "responsible", "id": ["bertanggung jawab"]}, {"en": "restaurant", "id": ["restoran"]}, {"en": "result", "id": ["hasil", "akibat"]}, {"en": "retain", "id": ["mempertahankan"]}, {"en": "retire", "id": ["pensiun"]}, {"en": "retired", "id": ["pensiun"]}, {"en": "return", "id": ["kembali", "pulang"]}, {"en": "reveal", "id": ["mengungkapkan"]}, {"en": "review", "id": ["tinjauan", "ulasan"]}, {"en": "revise", "id": ["merevisi"]}, {"en": "revolution", "id": ["revolusi"]}, {"en": "reward", "id": ["hadiah", "penghargaan"]}, {"en": "rhythm", "id": ["ritme", "irama"]}, {"en": "rice", "id": ["nasi", "beras"]}, {"en": "rich", "id": ["kaya"]}, {"en": "rid", "id": ["menghilangkan"]}, {"en": "ride", "id": ["mengendarai", "naik"]}, {"en": "right", "id": ["benar", "kanan", "hak"]}, {"en": "rise", "id": ["naik", "bangkit", "kenaikan"]}, {"en": "risk", "id": ["risiko", "bahaya"]}, {"en": "river", "id": ["sungai"]}, {"en": "road", "id": ["jalan"]}, {"en": "robot", "id": ["robot"]}, {"en": "role", "id": ["peran", "peranan"]}, {"en": "roll", "id": ["menggulingkan", "gulungan"]}, {"en": "romantic", "id": ["romantis"]}, {"en": "roof", "id": ["atap"]}, {"en": "room", "id": ["kamar", "ruangan"]}, {"en": "root", "id": ["akar"]}, {"en": "rope", "id": ["tali"]}, {"en": "rough", "id": ["kasar"]}, {"en": "round", "id": ["bulat", "putaran"]}, {"en": "route", "id": ["rute", "jalur"]}, {"en": "routine", "id": ["rutinitas"]}, {"en": "royal", "id": ["kerajaan"]}, {"en": "rub", "id": ["menggosok"]}, {"en": "rubber", "id": ["karet"]}, {"en": "rude", "id": ["kasar", "tidak sopan"]}, {"en": "rule", "id": ["aturan", "hukum"]}, {"en": "run", "id": ["berlari", "menjalankan"]}, {"en": "runner", "id": ["pelari"]}, {"en": "running", "id": ["berlari"]}, {"en": "rural", "id": ["pedesaan", "pedalaman"]}, {"en": "rush", "id": ["tergesa-gesa", "bergegas"]}, {"en": "sad", "id": ["sedih"]}, {"en": "sadly", "id": ["dengan sedih"]}, {"en": "safe", "id": ["aman"]}, {"en": "safety", "id": ["keamanan"]}, {"en": "sail", "id": ["berlayar", "layar"]}, {"en": "sailing", "id": ["berlayar"]}, {"en": "sailor", "id": ["pelaut"]}, {"en": "salad", "id": ["salad"]}, {"en": "salary", "id": ["gaji"]}, {"en": "sale", "id": ["penjualan", "obral"]}, {"en": "salt", "id": ["garam"]}, {"en": "same", "id": ["sama"]}, {"en": "sample", "id": ["sampel", "contoh"]}, {"en": "sand", "id": ["pasir"]}, {"en": "sandwich", "id": ["sandwich", "roti isi"]}, {"en": "satellite", "id": ["satelit"]}, {"en": "satisfied", "id": ["puas"]}, {"en": "satisfy", "id": ["memuaskan"]}, {"en": "sauce", "id": ["saus"]}, {"en": "save", "id": ["menyimpan", "menyelamatkan"]}, {"en": "saving", "id": ["tabungan", "penghematan"]}, {"en": "say", "id": ["mengatakan", "berkata"]}, {"en": "scale", "id": ["skala", "timbangan"]}, {"en": "scan", "id": ["memindai", "scan"]}, {"en": "scared", "id": ["takut"]}, {"en": "scary", "id": ["menakutkan"]}, {"en": "scene", "id": ["adegan", "pemandangan"]}, {"en": "schedule", "id": ["jadwal"]}, {"en": "school", "id": ["sekolah"]}, {"en": "science", "id": ["sains", "ilmu pengetahuan"]}, {"en": "scientific", "id": ["ilmiah", "saintifik"]}, {"en": "scientist", "id": ["ilmuwan"]}, {"en": "score", "id": ["skor", "nilai"]}, {"en": "scream", "id": ["berteriak", "teriakan"]}, {"en": "screen", "id": ["layar"]}, {"en": "script", "id": ["naskah", "skrip"]}, {"en": "sculpture", "id": ["patung", "skulptur"]}, {"en": "sea", "id": ["laut"]}, {"en": "search", "id": ["mencari", "pencarian"]}, {"en": "season", "id": ["musim"]}, {"en": "seat", "id": ["kursi", "tempat duduk"]}, {"en": "secondary", "id": ["sekunder", "menengah"]}, {"en": "secret", "id": ["rahasia"]}, {"en": "secretary", "id": ["sekretaris"]}, {"en": "section", "id": ["bagian"]}, {"en": "sector", "id": ["sektor"]}, {"en": "secure", "id": ["aman", "mengamankan"]}, {"en": "security", "id": ["keamanan"]}, {"en": "see", "id": ["melihat", "mengerti"]}, {"en": "seed", "id": ["benih", "biji"]}, {"en": "seek", "id": ["mencari", "berusaha"]}, {"en": "seem", "id": ["tampak", "terlihat"]}, {"en": "select", "id": ["memilih"]}, {"en": "selection", "id": ["pilihan", "seleksi"]}, {"en": "self", "id": ["diri"]}, {"en": "sell", "id": ["menjual"]}, {"en": "senate", "id": ["senat"]}, {"en": "senator", "id": ["senator"]}, {"en": "send", "id": ["mengirim", "mengutus"]}, {"en": "senior", "id": ["senior"]}, {"en": "sense", "id": ["indera", "rasa", "akal"]}, {"en": "sensible", "id": ["bijaksana", "masuk akal"]}, {"en": "sensitive", "id": ["sensitif", "peka"]}, {"en": "sentence", "id": ["kalimat", "hukuman"]}, {"en": "separate", "id": ["memisahkan", "terpisah"]}, {"en": "sequence", "id": ["urutan", "rangkaian"]}, {"en": "series", "id": ["seri", "rangkaian"]}, {"en": "serious", "id": ["serius"]}, {"en": "seriously", "id": ["dengan serius"]}, {"en": "servant", "id": ["pelayan", "pembantu"]}, {"en": "serve", "id": ["melayani"]}, {"en": "service", "id": ["layanan", "jasa"]}, {"en": "session", "id": ["sesi"]}, {"en": "setting", "id": ["pengaturan", "latar"]}, {"en": "settle", "id": ["menyelesaikan", "menetap"]}, {"en": "several", "id": ["beberapa"]}, {"en": "severe", "id": ["parah", "keras"]}, {"en": "sex", "id": ["jenis kelamin", "seks"]}, {"en": "sexual", "id": ["seksual"]}, {"en": "shade", "id": ["bayangan", "naungan"]}, {"en": "shadow", "id": ["bayangan"]}, {"en": "shake", "id": ["menggoyangkan", "gemetar"]}, {"en": "shallow", "id": ["dangkal"]}, {"en": "shame", "id": ["rasa malu", "memalukan"]}, {"en": "shape", "id": ["bentuk"]}, {"en": "share", "id": ["berbagi", "bagian"]}, {"en": "sharp", "id": ["tajam"]}, {"en": "she", "id": ["dia (perempuan)"]}, {"en": "sheep", "id": ["domba"]}, {"en": "sheet", "id": ["lembar", "selimut"]}, {"en": "shelf", "id": ["rak"]}, {"en": "shell", "id": ["cangkang", "kerang"]}, {"en": "shelter", "id": ["tempat berlindung"]}, {"en": "shift", "id": ["pergeseran", "giliran"]}, {"en": "shine", "id": ["bersinar"]}, {"en": "shiny", "id": ["bersinar", "mengkilap"]}, {"en": "ship", "id": ["kapal"]}, {"en": "shirt", "id": ["kemeja", "kaos"]}, {"en": "shock", "id": ["syok", "mengejutkan"]}, {"en": "shocked", "id": ["terkejut"]}, {"en": "shoe", "id": ["sepatu"]}, {"en": "shoot", "id": ["menembak"]}, {"en": "shooting", "id": ["penembakan"]}, {"en": "shop", "id": ["toko", "berbelanja"]}, {"en": "shopping", "id": ["belanja"]}, {"en": "short", "id": ["pendek"]}, {"en": "shot", "id": ["tembakan", "suntikan"]}, {"en": "shoulder", "id": ["bahu"]}, {"en": "shout", "id": ["berteriak", "teriakan"]}, {"en": "show", "id": ["menampilkan", "pertunjukan", "acara"]}, {"en": "shower", "id": ["mandi", "shower"]}, {"en": "shut", "id": ["menutup", "diam"]}, {"en": "shy", "id": ["pemalu"]}, {"en": "sick", "id": ["sakit"]}, {"en": "side", "id": ["sisi", "samping"]}, {"en": "sight", "id": ["penglihatan", "pandangan"]}, {"en": "sign", "id": ["tanda", "menandatangani"]}, {"en": "signal", "id": ["sinyal", "isyarat"]}, {"en": "significant", "id": ["signifikan", "penting"]}, {"en": "significantly", "id": ["secara signifikan"]}, {"en": "silence", "id": ["keheningan", "diam"]}, {"en": "silent", "id": ["diam", "hening"]}, {"en": "silk", "id": ["sutra"]}, {"en": "silly", "id": ["bodoh", "konyol"]}, {"en": "silver", "id": ["perak"]}, {"en": "similar", "id": ["mirip", "serupa"]}, {"en": "similarity", "id": ["kesamaan", "kemiripan"]}, {"en": "similarly", "id": ["demikian pula", "sama halnya"]}, {"en": "simple", "id": ["sederhana", "mudah"]}, {"en": "simply", "id": ["hanya", "sekedar"]}, {"en": "since", "id": ["sejak", "karena"]}, {"en": "sincere", "id": ["tulus", "ikhlas"]}, {"en": "sing", "id": ["menyanyi", "bernyanyi"]}, {"en": "singer", "id": ["penyanyi"]}, {"en": "singing", "id": ["menyanyi", "nyanyian"]}, {"en": "single", "id": ["tunggal", "sendiri"]}, {"en": "sink", "id": ["wastafel", "tenggelam"]}, {"en": "sir", "id": ["tuan", "pak"]}, {"en": "sister", "id": ["saudara perempuan", "adik perempuan", "kakak perempuan"]}, {"en": "sit", "id": ["duduk"]}, {"en": "site", "id": ["situs", "tempat"]}, {"en": "situation", "id": ["situasi", "keadaan"]}, {"en": "size", "id": ["ukuran"]}, {"en": "ski", "id": ["ski"]}, {"en": "skiing", "id": ["ski"]}, {"en": "skill", "id": ["keterampilan", "keahlian"]}, {"en": "skin", "id": ["kulit"]}, {"en": "skirt", "id": ["rok"]}, {"en": "sky", "id": ["langit"]}, {"en": "slave", "id": ["budak"]}, {"en": "sleep", "id": ["tidur"]}, {"en": "slice", "id": ["irisan", "mengiris"]}, {"en": "slide", "id": ["meluncur", "slide"]}, {"en": "slight", "id": ["sedikit", "kecil"]}, {"en": "slightly", "id": ["sedikit"]}, {"en": "slip", "id": ["tergelincir"]}, {"en": "slope", "id": ["lereng", "kemiringan"]}, {"en": "slow", "id": ["lambat"]}, {"en": "slowly", "id": ["perlahan", "lambat-lambat"]}, {"en": "small", "id": ["kecil"]}, {"en": "smart", "id": ["cerdas", "pintar"]}, {"en": "smartphone", "id": ["smartphone", "ponsel pintar"]}, {"en": "smell", "id": ["bau", "mencium"]}, {"en": "smile", "id": ["tersenyum", "senyum"]}, {"en": "smoke", "id": ["asap", "merokok"]}, {"en": "smoking", "id": ["merokok"]}, {"en": "smooth", "id": ["halus", "licin"]}, {"en": "snake", "id": ["ular"]}, {"en": "sneaker", "id": ["sepatu olahraga", "sneaker"]}, {"en": "snow", "id": ["salju"]}, {"en": "so", "id": ["jadi", "sehingga"]}, {"en": "soap", "id": ["sabun"]}, {"en": "soccer", "id": ["sepak bola"]}, {"en": "social", "id": ["sosial"]}, {"en": "society", "id": ["masyarakat"]}, {"en": "sock", "id": ["kaos kaki"]}, {"en": "soft", "id": ["lembut"]}, {"en": "software", "id": ["perangkat lunak", "software"]}, {"en": "soil", "id": ["tanah"]}, {"en": "solar", "id": ["surya", "matahari"]}, {"en": "soldier", "id": ["tentara", "prajurit"]}, {"en": "solid", "id": ["padat", "kuat"]}, {"en": "solution", "id": ["solusi", "penyelesaian"]}, {"en": "solve", "id": ["memecahkan", "menyelesaikan"]}, {"en": "some", "id": ["beberapa", "agak"]}, {"en": "somebody", "id": ["seseorang"]}, {"en": "someone", "id": ["seseorang"]}, {"en": "something", "id": ["sesuatu"]}, {"en": "sometimes", "id": ["kadang-kadang"]}, {"en": "somewhat", "id": ["agak"]}, {"en": "somewhere", "id": ["di suatu tempat"]}, {"en": "son", "id": ["anak laki-laki"]}, {"en": "song", "id": ["lagu"]}, {"en": "soon", "id": ["segera", "sebentar lagi"]}, {"en": "sorry", "id": ["maaf", "minta maaf"]}, {"en": "sort", "id": ["jenis", "menyortir"]}, {"en": "soul", "id": ["jiwa", "roh"]}, {"en": "sound", "id": ["suara", "bunyi"]}, {"en": "soup", "id": ["sup"]}, {"en": "source", "id": ["sumber"]}, {"en": "south", "id": ["selatan"]}, {"en": "southern", "id": ["selatan", "bagian selatan"]}, {"en": "space", "id": ["ruang", "angkasa"]}, {"en": "speak", "id": ["berbicara", "berkata"]}, {"en": "speaker", "id": ["pembicara", "speaker"]}, {"en": "special", "id": ["istimewa", "khusus"]}, {"en": "specialist", "id": ["spesialis", "ahli"]}, {"en": "species", "id": ["spesies", "jenis"]}, {"en": "specific", "id": ["spesifik", "khusus"]}, {"en": "specifically", "id": ["secara khusus", "terutama"]}, {"en": "speech", "id": ["pidato", "ucapan"]}, {"en": "speed", "id": ["kecepatan"]}, {"en": "spell", "id": ["mengeja"]}, {"en": "spelling", "id": ["ejaan"]}, {"en": "spend", "id": ["menghabiskan", "membelanjakan"]}, {"en": "spending", "id": ["pengeluaran"]}, {"en": "spicy", "id": ["pedas"]}, {"en": "spider", "id": ["laba-laba"]}, {"en": "spirit", "id": ["semangat", "roh"]}, {"en": "spiritual", "id": ["spiritual", "rohaniah"]}, {"en": "split", "id": ["memisahkan", "membagi"]}, {"en": "spoken", "id": ["diucapkan", "lisan"]}, {"en": "sponsor", "id": ["sponsor", "mensponsori"]}, {"en": "spoon", "id": ["sendok"]}, {"en": "sport", "id": ["olahraga"]}, {"en": "spot", "id": ["tempat", "bintik"]}, {"en": "spread", "id": ["menyebar", "penyebaran"]}, {"en": "spring", "id": ["musim semi", "pegas"]}, {"en": "square", "id": ["persegi", "lapangan"]}, {"en": "stable", "id": ["stabil", "kandang"]}, {"en": "stadium", "id": ["stadion"]}, {"en": "staff", "id": ["staf", "karyawan"]}, {"en": "stage", "id": ["panggung", "tahap"]}, {"en": "stair", "id": ["tangga"]}, {"en": "stamp", "id": ["perangko", "cap"]}, {"en": "stand", "id": ["berdiri", "kios"]}, {"en": "standard", "id": ["standar"]}, {"en": "star", "id": ["bintang"]}, {"en": "stare", "id": ["menatap"]}, {"en": "start", "id": ["mulai", "memulai", "awal"]}, {"en": "state", "id": ["negara", "menyatakan", "keadaan"]}, {"en": "statement", "id": ["pernyataan"]}, {"en": "station", "id": ["stasiun"]}, {"en": "statistic", "id": ["statistik"]}, {"en": "statue", "id": ["patung"]}, {"en": "status", "id": ["status"]}, {"en": "stay", "id": ["tinggal", "tetap"]}, {"en": "steady", "id": ["mantap", "stabil"]}, {"en": "steal", "id": ["mencuri"]}, {"en": "steel", "id": ["baja"]}, {"en": "steep", "id": ["curam", "terjal"]}, {"en": "step", "id": ["langkah", "tangga"]}, {"en": "sticky", "id": ["lengket"]}, {"en": "stiff", "id": ["kaku"]}, {"en": "still", "id": ["masih", "diam"]}, {"en": "stock", "id": ["stok", "saham"]}, {"en": "stomach", "id": ["perut"]}, {"en": "stone", "id": ["batu"]}, {"en": "stop", "id": ["berhenti", "menghentikan"]}, {"en": "store", "id": ["toko", "menyimpan"]}, {"en": "storm", "id": ["badai", "topan"]}, {"en": "story", "id": ["cerita"]}, {"en": "stove", "id": ["kompor"]}, {"en": "straight", "id": ["lurus"]}, {"en": "strange", "id": ["aneh", "asing"]}, {"en": "stranger", "id": ["orang asing"]}, {"en": "strategy", "id": ["strategi"]}, {"en": "stream", "id": ["aliran", "sungai"]}, {"en": "street", "id": ["jalan"]}, {"en": "strength", "id": ["kekuatan"]}, {"en": "stress", "id": ["stres", "tekanan"]}, {"en": "stretch", "id": ["meregangkan"]}, {"en": "strict", "id": ["ketat", "disiplin"]}, {"en": "strike", "id": ["mogok", "menyerang"]}, {"en": "string", "id": ["benang", "tali"]}, {"en": "strong", "id": ["kuat", "keras"]}, {"en": "strongly", "id": ["dengan kuat"]}, {"en": "structure", "id": ["struktur"]}, {"en": "struggle", "id": ["perjuangan", "berjuang"]}, {"en": "student", "id": ["siswa", "mahasiswa"]}, {"en": "studio", "id": ["studio"]}, {"en": "study", "id": ["belajar", "studi"]}, {"en": "stuff", "id": ["barang", "hal"]}, {"en": "stupid", "id": ["bodoh"]}, {"en": "style", "id": ["gaya", "model"]}, {"en": "subject", "id": ["subjek", "pelajaran"]}, {"en": "submit", "id": ["mengajukan", "menyerahkan"]}, {"en": "substance", "id": ["zat", "substansi"]}, {"en": "subway", "id": ["subway", "kereta bawah tanah"]}, {"en": "succeed", "id": ["berhasil"]}, {"en": "success", "id": ["keberhasilan", "sukses"]}, {"en": "successful", "id": ["berhasil", "sukses"]}, {"en": "successfully", "id": ["dengan sukses"]}, {"en": "such", "id": ["seperti itu", "sedemikian"]}, {"en": "sudden", "id": ["tiba-tiba"]}, {"en": "suddenly", "id": ["tiba-tiba", "mendadak"]}, {"en": "suffer", "id": ["menderita"]}, {"en": "sugar", "id": ["gula"]}, {"en": "suggest", "id": ["menyarankan"]}, {"en": "suggestion", "id": ["saran", "usulan"]}, {"en": "suit", "id": ["jas", "sesuai"]}, {"en": "suitable", "id": ["cocok", "sesuai"]}, {"en": "sum", "id": ["jumlah"]}, {"en": "summarize", "id": ["merangkum"]}, {"en": "summary", "id": ["ringkasan"]}, {"en": "summer", "id": ["musim panas"]}, {"en": "sun", "id": ["matahari"]}, {"en": "supermarket", "id": ["supermarket", "swalayan"]}, {"en": "supply", "id": ["pasokan", "menyediakan"]}, {"en": "support", "id": ["mendukung", "dukungan"]}, {"en": "supporter", "id": ["pendukung"]}, {"en": "suppose", "id": ["mengira", "beranggapan"]}, {"en": "sure", "id": ["yakin", "pasti"]}, {"en": "surely", "id": ["pasti", "tentu"]}, {"en": "surface", "id": ["permukaan"]}, {"en": "surgery", "id": ["operasi", "bedah"]}, {"en": "surprise", "id": ["kejutan", "mengejutkan"]}, {"en": "surprised", "id": ["terkejut"]}, {"en": "surprising", "id": ["mengejutkan"]}, {"en": "surround", "id": ["mengelilingi"]}, {"en": "surrounding", "id": ["sekitar", "lingkungan"]}, {"en": "survey", "id": ["survei"]}, {"en": "survive", "id": ["bertahan", "selamat"]}, {"en": "suspect", "id": ["mencurigai", "tersangka"]}, {"en": "swear", "id": ["bersumpah", "berkata kasar"]}, {"en": "sweater", "id": ["sweater"]}, {"en": "sweep", "id": ["menyapu"]}, {"en": "sweet", "id": ["manis"]}, {"en": "swim", "id": ["berenang"]}, {"en": "swimming", "id": ["berenang"]}, {"en": "switch", "id": ["sakelar", "beralih"]}, {"en": "symbol", "id": ["simbol", "lambang"]}, {"en": "sympathy", "id": ["simpati", "belasungkawa"]}, {"en": "symptom", "id": ["gejala"]}, {"en": "system", "id": ["sistem"]}, {"en": "table", "id": ["meja"]}, {"en": "tablet", "id": ["tablet"]}, {"en": "tail", "id": ["ekor"]}, {"en": "take", "id": ["mengambil", "membawa"]}, {"en": "tale", "id": ["dongeng", "cerita"]}, {"en": "talent", "id": ["bakat"]}, {"en": "talented", "id": ["berbakat"]}, {"en": "talk", "id": ["berbicara", "bicara"]}, {"en": "tall", "id": ["tinggi"]}, {"en": "tank", "id": ["tangki", "tank"]}, {"en": "tape", "id": ["pita", "selotip"]}, {"en": "target", "id": ["target", "sasaran"]}, {"en": "task", "id": ["tugas"]}, {"en": "taste", "id": ["rasa", "mencicipi"]}, {"en": "tax", "id": ["pajak"]}, {"en": "taxi", "id": ["taksi"]}, {"en": "tea", "id": ["teh"]}, {"en": "teach", "id": ["mengajar"]}, {"en": "teacher", "id": ["guru", "pengajar"]}, {"en": "teaching", "id": ["mengajar", "pengajaran"]}, {"en": "team", "id": ["tim", "regu"]}, {"en": "technical", "id": ["teknis"]}, {"en": "technique", "id": ["teknik"]}, {"en": "technology", "id": ["teknologi"]}, {"en": "teenage", "id": ["remaja"]}, {"en": "teenager", "id": ["remaja"]}, {"en": "telephone", "id": ["telepon"]}, {"en": "television", "id": ["televisi"]}, {"en": "tell", "id": ["memberitahu", "menceritakan"]}, {"en": "temperature", "id": ["suhu", "temperatur"]}, {"en": "temporary", "id": ["sementara"]}, {"en": "tend", "id": ["cenderung", "merawat"]}, {"en": "tennis", "id": ["tenis"]}, {"en": "tent", "id": ["tenda"]}, {"en": "term", "id": ["istilah", "masa jabatan"]}, {"en": "terrible", "id": ["sangat buruk", "mengerikan"]}, {"en": "test", "id": ["tes", "ujian"]}, {"en": "text", "id": ["teks", "pesan"]}, {"en": "than", "id": ["daripada"]}, {"en": "thank", "id": ["berterima kasih"]}, {"en": "that", "id": ["itu", "bahwa"]}, {"en": "theater", "id": ["bioskop", "teater"]}, {"en": "their", "id": ["milik mereka"]}, {"en": "theirs", "id": ["milik mereka"]}, {"en": "them", "id": ["mereka"]}, {"en": "theme", "id": ["tema"]}, {"en": "themselves", "id": ["diri mereka sendiri"]}, {"en": "then", "id": ["lalu", "kemudian"]}, {"en": "theory", "id": ["teori"]}, {"en": "therapy", "id": ["terapi"]}, {"en": "there", "id": ["di sana"]}, {"en": "therefore", "id": ["karena itu", "oleh karena itu"]}, {"en": "they", "id": ["mereka"]}, {"en": "thick", "id": ["tebal"]}, {"en": "thief", "id": ["pencuri"]}, {"en": "thin", "id": ["tipis", "kurus"]}, {"en": "thing", "id": ["benda", "hal"]}, {"en": "think", "id": ["berpikir", "mengira"]}, {"en": "thinking", "id": ["pemikiran", "berpikir"]}, {"en": "thirsty", "id": ["haus"]}, {"en": "this", "id": ["ini"]}, {"en": "though", "id": ["meskipun", "walaupun"]}, {"en": "thought", "id": ["pikiran"]}, {"en": "threat", "id": ["ancaman"]}, {"en": "threaten", "id": ["mengancam"]}, {"en": "throat", "id": ["tenggorokan"]}, {"en": "through", "id": ["melalui", "lewat"]}, {"en": "throughout", "id": ["di seluruh", "sepanjang"]}, {"en": "throw", "id": ["melempar"]}, {"en": "thus", "id": ["dengan demikian", "jadi"]}, {"en": "ticket", "id": ["tiket"]}, {"en": "tie", "id": ["dasi", "mengikat"]}, {"en": "tight", "id": ["ketat", "erat"]}, {"en": "till", "id": ["hingga", "sampai"]}, {"en": "time", "id": ["waktu", "kali"]}, {"en": "tiny", "id": ["kecil sekali", "sangat kecil"]}, {"en": "tip", "id": ["tip", "ujung"]}, {"en": "tire", "id": ["ban"]}, {"en": "tired", "id": ["lelah", "capek"]}, {"en": "title", "id": ["judul", "gelar"]}, {"en": "to", "id": ["ke", "untuk"]}, {"en": "today", "id": ["hari ini"]}, {"en": "toe", "id": ["jari kaki"]}, {"en": "together", "id": ["bersama", "bersama-sama"]}, {"en": "toilet", "id": ["toilet", "WC"]}, {"en": "tomato", "id": ["tomat"]}, {"en": "tomorrow", "id": ["besok"]}, {"en": "ton", "id": ["ton"]}, {"en": "tone", "id": ["nada", "warna"]}, {"en": "tongue", "id": ["lidah"]}, {"en": "tonight", "id": ["malam ini"]}, {"en": "too", "id": ["juga", "terlalu"]}, {"en": "tool", "id": ["alat"]}, {"en": "tooth", "id": ["gigi"]}, {"en": "top", "id": ["atas", "puncak"]}, {"en": "topic", "id": ["topik", "tema"]}, {"en": "total", "id": ["total", "jumlah"]}, {"en": "totally", "id": ["sepenuhnya", "sama sekali"]}, {"en": "touch", "id": ["menyentuh", "sentuhan"]}, {"en": "tough", "id": ["tangguh", "keras"]}, {"en": "tour", "id": ["tur", "wisata"]}, {"en": "tourism", "id": ["pariwisata"]}, {"en": "tourist", "id": ["turis", "wisatawan"]}, {"en": "toward", "id": ["menuju", "ke arah"]}, {"en": "towel", "id": ["handuk"]}, {"en": "tower", "id": ["menara"]}, {"en": "town", "id": ["kota"]}, {"en": "toy", "id": ["mainan"]}, {"en": "track", "id": ["jalur", "melacak"]}, {"en": "trade", "id": ["perdagangan", "berdagang"]}, {"en": "tradition", "id": ["tradisi"]}, {"en": "traditional", "id": ["tradisional"]}, {"en": "traffic", "id": ["lalu lintas", "kemacetan"]}, {"en": "train", "id": ["kereta", "melatih"]}, {"en": "trainer", "id": ["pelatih"]}, {"en": "training", "id": ["pelatihan"]}, {"en": "transfer", "id": ["transfer", "memindahkan"]}, {"en": "transform", "id": ["mengubah", "mengubah"]}, {"en": "transition", "id": ["transisi", "perubahan"]}, {"en": "translate", "id": ["menerjemahkan"]}, {"en": "translation", "id": ["terjemahan"]}, {"en": "transport", "id": ["transportasi", "mengangkut"]}, {"en": "transportation", "id": ["transportasi"]}, {"en": "trash", "id": ["sampah"]}, {"en": "travel", "id": ["perjalanan", "berpergian"]}, {"en": "traveler", "id": ["pelancong", "wisatawan"]}, {"en": "treat", "id": ["memperlakukan", "mengobati"]}, {"en": "treatment", "id": ["pengobatan", "perlakuan"]}, {"en": "tree", "id": ["pohon"]}, {"en": "trend", "id": ["tren"]}, {"en": "trial", "id": ["persidangan", "percobaan"]}, {"en": "trick", "id": ["trik", "tipu"]}, {"en": "trip", "id": ["perjalanan"]}, {"en": "tropical", "id": ["tropis"]}, {"en": "trouble", "id": ["masalah", "kesulitan"]}, {"en": "truck", "id": ["truk"]}, {"en": "true", "id": ["benar", "nyata"]}, {"en": "truly", "id": ["sungguh-sungguh", "benar-benar"]}, {"en": "trust", "id": ["kepercayaan", "mempercayai"]}, {"en": "truth", "id": ["kebenaran"]}, {"en": "try", "id": ["mencoba", "berusaha"]}, {"en": "tube", "id": ["tabung", "pipa"]}, {"en": "tune", "id": ["melodi", "menala"]}, {"en": "tunnel", "id": ["terowongan"]}, {"en": "turn", "id": ["berputar", "giliran", "mengubah"]}, {"en": "twice", "id": ["dua kali"]}, {"en": "twin", "id": ["kembar"]}, {"en": "type", "id": ["jenis", "tipe", "mengetik"]}, {"en": "typical", "id": ["khas", "tipikal"]}, {"en": "typically", "id": ["biasanya", "umumnya"]}, {"en": "ugly", "id": ["jelek", "buruk rupa"]}, {"en": "ultimately", "id": ["pada akhirnya"]}, {"en": "umbrella", "id": ["payung"]}, {"en": "unable", "id": ["tidak mampu", "tidak sanggup"]}, {"en": "uncle", "id": ["paman"]}, {"en": "uncomfortable", "id": ["tidak nyaman", "tidak enak"]}, {"en": "unconscious", "id": ["tidak sadar", "tidak sadarkan diri"]}, {"en": "under", "id": ["di bawah", "kurang dari"]}, {"en": "underground", "id": ["bawah tanah"]}, {"en": "understand", "id": ["memahami", "mengerti"]}, {"en": "understanding", "id": ["pemahaman", "pengertian"]}, {"en": "underwear", "id": ["pakaian dalam"]}, {"en": "unemployed", "id": ["menganggur", "tidak bekerja"]}, {"en": "unemployment", "id": ["pengangguran"]}, {"en": "unexpected", "id": ["tidak terduga", "mendadak"]}, {"en": "unfair", "id": ["tidak adil", "tidak wajar"]}, {"en": "unfortunately", "id": ["sayangnya", "malangnya"]}, {"en": "unhappy", "id": ["tidak bahagia", "sedih"]}, {"en": "uniform", "id": ["seragam", "seragam (pakaian)"]}, {"en": "union", "id": ["persatuan", "serikat"]}, {"en": "unique", "id": ["unik", "khas"]}, {"en": "unit", "id": ["unit", "satuan"]}, {"en": "united", "id": ["bersatu", "tergabung"]}, {"en": "universe", "id": ["alam semesta", "jagat raya"]}, {"en": "university", "id": ["universitas", "perguruan tinggi"]}, {"en": "unknown", "id": ["tidak diketahui", "tidak dikenal"]}, {"en": "unless", "id": ["kecuali jika", "kecuali"]}, {"en": "unlike", "id": ["tidak seperti", "berbeda dengan"]}, {"en": "unlikely", "id": ["tidak mungkin", "kecil kemungkinan"]}, {"en": "unnecessary", "id": ["tidak perlu", "tidak diperlukan"]}, {"en": "unpleasant", "id": ["tidak menyenangkan", "tidak enak"]}, {"en": "until", "id": ["sampai", "hingga"]}, {"en": "unusual", "id": ["tidak biasa", "luar biasa"]}, {"en": "up", "id": ["ke atas", "naik"]}, {"en": "update", "id": ["pembaruan", "memperbarui"]}, {"en": "upon", "id": ["di atas", "pada"]}, {"en": "upper", "id": ["atas", "lebih tinggi"]}, {"en": "upset", "id": ["kesal", "marah", "kecewa"]}, {"en": "upstairs", "id": ["lantai atas", "di atas"]}, {"en": "upward", "id": ["ke atas", "meningkat"]}, {"en": "urban", "id": ["perkotaan", "kota"]}, {"en": "urge", "id": ["mendesak", "dorongan"]}, {"en": "us", "id": ["kami", "kita"]}, {"en": "use", "id": ["menggunakan", "memakai"]}, {"en": "useful", "id": ["berguna", "bermanfaat"]}, {"en": "user", "id": ["pengguna"]}, {"en": "usual", "id": ["biasa", "lazim"]}, {"en": "usually", "id": ["biasanya", "pada umumnya"]}, {"en": "vacation", "id": ["liburan", "cuti"]}, {"en": "valley", "id": ["lembah"]}, {"en": "valuable", "id": ["berharga", "bernilai"]}, {"en": "value", "id": ["nilai", "harga", "menghargai"]}, {"en": "van", "id": ["van", "mobil bak"]}, {"en": "variety", "id": ["variasi", "ragam", "keanekaragaman"]}, {"en": "various", "id": ["berbagai", "beragam"]}, {"en": "vary", "id": ["bervariasi", "berbeda-beda"]}, {"en": "vast", "id": ["sangat luas", "luas sekali"]}, {"en": "vegetable", "id": ["sayuran", "sayur-mayur"]}, {"en": "vehicle", "id": ["kendaraan"]}, {"en": "venue", "id": ["tempat", "lokasi", "arena"]}, {"en": "version", "id": ["versi", "edisi"]}, {"en": "very", "id": ["sangat", "sekali"]}, {"en": "via", "id": ["melalui", "lewat"]}, {"en": "victim", "id": ["korban"]}, {"en": "victory", "id": ["kemenangan"]}, {"en": "video", "id": ["video"]}, {"en": "view", "id": ["pandangan", "pemandangan", "melihat"]}, {"en": "viewer", "id": ["penonton", "penonton (pemirsa)"]}, {"en": "village", "id": ["desa", "kampung"]}, {"en": "violence", "id": ["kekerasan"]}, {"en": "violent", "id": ["keras", "kasar", "brutal"]}, {"en": "virtual", "id": ["virtual", "maya"]}, {"en": "virus", "id": ["virus"]}, {"en": "vision", "id": ["visi", "penglihatan", "pandangan"]}, {"en": "visit", "id": ["mengunjungi", "kunjungan"]}, {"en": "visitor", "id": ["pengunjung", "tamu"]}, {"en": "visual", "id": ["visual", "penglihatan"]}, {"en": "vital", "id": ["penting", "vital"]}, {"en": "vitamin", "id": ["vitamin"]}, {"en": "voice", "id": ["suara", "berkata"]}, {"en": "volume", "id": ["volume", "jilid"]}, {"en": "volunteer", "id": ["sukarela", "relawan"]}, {"en": "vote", "id": ["memilih", "suara", "pemungutan suara"]}, {"en": "wage", "id": ["upah", "gaji"]}, {"en": "wait", "id": ["menunggu", "tunggu"]}, {"en": "waiter", "id": ["pelayan", "pramusaji"]}, {"en": "wake", "id": ["terbangun", "membangunkan"]}, {"en": "walk", "id": ["berjalan", "jalan-jalan"]}, {"en": "wall", "id": ["dinding", "tembok"]}, {"en": "want", "id": ["ingin", "menginginkan"]}, {"en": "war", "id": ["perang"]}, {"en": "warm", "id": ["hangat"]}, {"en": "warn", "id": ["memperingatkan", "mengingatkan"]}, {"en": "warning", "id": ["peringatan"]}, {"en": "wash", "id": ["mencuci", "cuci"]}, {"en": "washing", "id": ["cucian", "mencuci"]}, {"en": "waste", "id": ["membuang", "sia-sia", "limbah"]}, {"en": "watch", "id": ["menonton", "mengamati", "jam tangan"]}, {"en": "water", "id": ["air"]}, {"en": "wave", "id": ["gelombang", "melambaikan", "ombak"]}, {"en": "way", "id": ["cara", "jalan"]}, {"en": "we", "id": ["kami", "kita"]}, {"en": "weak", "id": ["lemah", "tidak kuat"]}, {"en": "weakness", "id": ["kelemahan", "kekurangan"]}, {"en": "wealth", "id": ["kekayaan"]}, {"en": "wealthy", "id": ["kaya", "makmur"]}, {"en": "weapon", "id": ["senjata"]}, {"en": "wear", "id": ["memakai", "mengenakan"]}, {"en": "weather", "id": ["cuaca"]}, {"en": "web", "id": ["web", "jaring laba-laba"]}, {"en": "website", "id": ["situs web", "website"]}, {"en": "wedding", "id": ["pernikahan", "perkawinan"]}, {"en": "week", "id": ["minggu", "pekan"]}, {"en": "weekend", "id": ["akhir pekan", "hari libur"]}, {"en": "weigh", "id": ["menimbang", "mengukur berat"]}, {"en": "weight", "id": ["berat", "bobot"]}, {"en": "well", "id": ["baik", "dengan baik", "sumur"]}, {"en": "west", "id": ["barat"]}, {"en": "western", "id": ["barat", "film koboi"]}, {"en": "wet", "id": ["basah"]}, {"en": "what", "id": ["apa"]}, {"en": "whatever", "id": ["apapun", "apa saja"]}, {"en": "wheel", "id": ["roda", "kemudi"]}, {"en": "when", "id": ["ketika", "kapan"]}, {"en": "whenever", "id": ["kapanpun", "setiap kali"]}, {"en": "where", "id": ["di mana", "ke mana"]}, {"en": "whereas", "id": ["sedangkan", "sementara"]}, {"en": "wherever", "id": ["di mana pun", "ke mana pun"]}, {"en": "whether", "id": ["apakah", "entah"]}, {"en": "which", "id": ["yang mana", "yang"]}, {"en": "while", "id": ["sementara", "selagi", "waktu"]}, {"en": "whisper", "id": ["berbisik", "bisikan"]}, {"en": "white", "id": ["putih"]}, {"en": "who", "id": ["siapa"]}, {"en": "whole", "id": ["seluruh", "keseluruhan"]}, {"en": "whom", "id": ["kepada siapa", "yang"]}, {"en": "whose", "id": ["milik siapa"]}, {"en": "why", "id": ["mengapa", "kenapa"]}, {"en": "wide", "id": ["lebar", "luas"]}, {"en": "widely", "id": ["secara luas", "tersebar luas"]}, {"en": "wife", "id": ["istri"]}, {"en": "wild", "id": ["liar", "ganas"]}, {"en": "wildlife", "id": ["satwa liar", "kehidupan liar"]}, {"en": "willing", "id": ["bersedia", "mau"]}, {"en": "win", "id": ["menang", "memenangkan"]}, {"en": "window", "id": ["jendela"]}, {"en": "wine", "id": ["anggur", "wine"]}, {"en": "wing", "id": ["sayap"]}, {"en": "winner", "id": ["pemenang"]}, {"en": "winter", "id": ["musim dingin"]}, {"en": "wire", "id": ["kawat", "kabel"]}, {"en": "wise", "id": ["bijak", "bijaksana"]}, {"en": "wish", "id": ["harapan", "mengharapkan"]}, {"en": "with", "id": ["dengan", "bersama"]}, {"en": "within", "id": ["di dalam", "dalam jangkauan"]}, {"en": "without", "id": ["tanpa"]}, {"en": "witness", "id": ["saksi", "menyaksikan"]}, {"en": "woman", "id": ["wanita", "perempuan"]}, {"en": "wonder", "id": ["keajaiban", "bertanya-tanya"]}, {"en": "wonderful", "id": ["luar biasa", "menakjubkan"]}, {"en": "wood", "id": ["kayu"]}, {"en": "wooden", "id": ["kayu", "dari kayu"]}, {"en": "wool", "id": ["wol"]}, {"en": "word", "id": ["kata"]}, {"en": "work", "id": ["bekerja", "pekerjaan"]}, {"en": "worker", "id": ["pekerja", "karyawan"]}, {"en": "working", "id": ["bekerja", "yang bekerja"]}, {"en": "world", "id": ["dunia"]}, {"en": "worldwide", "id": ["di seluruh dunia", "mendunia"]}, {"en": "worried", "id": ["khawatir", "cemas"]}, {"en": "worry", "id": ["khawatir", "cemas", "kekhawatiran"]}, {"en": "worse", "id": ["lebih buruk", "semakin parah"]}, {"en": "worst", "id": ["terburuk", "paling buruk"]}, {"en": "worth", "id": ["bernilai", "layak", "seharga"]}, {"en": "wound", "id": ["luka", "melukai"]}, {"en": "wrap", "id": ["membungkus", "membungkus"]}, {"en": "write", "id": ["menulis", "mengarang"]}, {"en": "writer", "id": ["penulis", "pengarang"]}, {"en": "writing", "id": ["tulisan", "penulisan"]}, {"en": "written", "id": ["tertulis", "ditulis"]}, {"en": "wrong", "id": ["salah", "keliru"]}, {"en": "yard", "id": ["halaman", "yard (satuan)"]}, {"en": "year", "id": ["tahun"]}, {"en": "yellow", "id": ["kuning"]}, {"en": "yesterday", "id": ["kemarin"]}, {"en": "yet", "id": ["belum", "namun", "tetapi"]}, {"en": "you", "id": ["kamu", "kau", "Anda"]}, {"en": "young", "id": ["muda"]}, {"en": "your", "id": ["milikmu", "kepunyaanmu"]}, {"en": "yours", "id": ["milikmu", "punyamu"]}, {"en": "yourself", "id": ["dirimu sendiri", "kamu sendiri"]}, {"en": "youth", "id": ["pemuda", "remaja", "masa muda"]}, {"en": "zone", "id": ["zona", "kawasan", "wilayah"]}];
+
+// ── State ──────────────────────────────────────────────
+var mode = 1;
+var sessionWords  = [];   // kata di sesi aktif
+var index         = 0;
+var answered      = false;
+var autoNextTimer = null;
+var streak        = 0;
+var reviewWords   = [];
+var isReviewRound = false;
+var activeSession = 0;    // indeks sesi yang sedang dimainkan (0-based)
+
+// Statistik sesi
+var statCorrect  = 0;
+var statWrong    = 0;
+var statGiveup   = 0;
+var statMissed   = [];  // {en, id, type} untuk evaluasi
+var sessionStart = 0;  // timestamp mulai (ms)
+
+// localStorage keys
+var LS_MAP     = 'vt_sessionMap';   // { "0": [idx,idx,...], "1": [...], ... }
+var LS_DONE    = 'vt_doneSessions'; // [0, 1, 3, ...]  sesi yang SUDAH selesai
+var LS_UNLOCK  = 'vt_unlocked';     // jumlah sesi yang sudah terbuka
+var LS_INF_STR = 'vt_streak';
+
+var SESSION_SIZE = 100;
+var totalSessions = Math.ceil(WORDS_ALL.length / SESSION_SIZE);
+
+// ── Init session map ───────────────────────────────────
+// sessionMap: array of arrays — tiap elemen = array index ke WORDS_ALL
+var sessionMap = [];
+var doneSessions = [];
+var unlockedCount = 1;
+
+function loadState() {
+  var raw = localStorage.getItem(LS_MAP);
+  if (raw) {
+    sessionMap   = JSON.parse(raw);
+    doneSessions = JSON.parse(localStorage.getItem(LS_DONE) || '[]');
+    unlockedCount = parseInt(localStorage.getItem(LS_UNLOCK)) || 1;
+  } else {
+    buildSessionMap();
+  }
+}
+
+function buildSessionMap() {
+  // Shuffle semua indeks lalu bagi per sesi
+  var indices = [];
+  for (var i = 0; i < WORDS_ALL.length; i++) indices.push(i);
+  shuffleArr(indices);
+
+  sessionMap = [];
+  for (var s = 0; s < totalSessions; s++) {
+    sessionMap.push(indices.slice(s * SESSION_SIZE, (s + 1) * SESSION_SIZE));
+  }
+  doneSessions  = [];
+  unlockedCount = 1;
+  saveState();
+}
+
+function saveState() {
+  localStorage.setItem(LS_MAP,    JSON.stringify(sessionMap));
+  localStorage.setItem(LS_DONE,   JSON.stringify(doneSessions));
+  localStorage.setItem(LS_UNLOCK, unlockedCount);
+}
+
+// ── Boot ───────────────────────────────────────────────
+loadState();
+document.getElementById('statTotal').textContent   = WORDS_ALL.length;
+document.getElementById('statDone').textContent    = doneSessions.length * SESSION_SIZE;
+document.getElementById('statSession').textContent = unlockedCount + ' / ' + totalSessions;
+
+// ── Mode select ────────────────────────────────────────
+function startMode(m) {
+  mode = m;
+  document.getElementById('modeSelect').classList.add('hidden');
+  document.getElementById('backBtn').classList.remove('hidden');
+
+  if (mode === 1) {
+    showSessionPicker();
+  } else {
+    startInfinite();
+  }
+}
+
+function goBack() {
+  clearTimers();
+  document.getElementById('sessionPicker').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('modeSelect').classList.remove('hidden');
+  document.getElementById('backBtn').classList.add('hidden');
+  // refresh stats
+  document.getElementById('statDone').textContent    = doneSessions.length * SESSION_SIZE;
+  document.getElementById('statSession').textContent = unlockedCount + ' / ' + totalSessions;
+}
+
+// ── Session Picker ─────────────────────────────────────
+function showSessionPicker() {
+  document.getElementById('sessionPicker').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  renderSessionGrid();
+}
+
+function renderSessionGrid() {
+  document.getElementById('spDone').textContent  = doneSessions.length;
+  document.getElementById('spTotal').textContent = totalSessions;
+
+  var grid = document.getElementById('sessionGrid');
+  grid.innerHTML = '';
+
+  for (var s = 0; s < totalSessions; s++) {
+    var btn = document.createElement('button');
+    btn.className = 'sess-btn';
+    var num = s + 1;
+    var isDone     = doneSessions.indexOf(s) !== -1;
+    var isUnlocked = s < unlockedCount;
+
+    if (isDone) {
+      btn.classList.add('done');
+      btn.innerHTML = '<span>' + num + '</span><span class="sess-check">&#10003;</span>';
+    } else if (isUnlocked) {
+      btn.classList.add('unlocked');
+      if (s === unlockedCount - 1) btn.classList.add('current-active');
+      btn.innerHTML = '<span>' + num + '</span>';
+    } else {
+      btn.classList.add('locked');
+      btn.innerHTML = '<span>' + num + '</span><span class="sess-lock">&#128274;</span>';
+    }
+
+    if (isUnlocked) {
+      (function(sIdx) {
+        btn.onclick = function() { startSession(sIdx); };
+      })(s);
+    }
+
+    grid.appendChild(btn);
+  }
+}
+
+function startSession(sIdx) {
+  activeSession = sIdx;
+  reviewWords   = [];
+  isReviewRound = false;
+  statCorrect   = 0;
+  statWrong     = 0;
+  statGiveup    = 0;
+  statMissed    = [];
+  sessionStart  = Date.now();
+
+  // Ambil kata sesuai sessionMap lalu acak urutannya
+  var wordIndices = sessionMap[sIdx].slice(); // copy supaya sessionMap asli tidak berubah
+  shuffleArr(wordIndices);
+  sessionWords = wordIndices.map(function(i) { return WORDS_ALL[i]; });
+  index = 0;
+
+  document.getElementById('sessionPicker').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  streak = 0;
+  document.getElementById('streakNum').textContent = 0;
+  document.getElementById('reviewBadge').classList.add('hidden');
+  showWord();
+}
+
+// ── Infinite mode ──────────────────────────────────────
+function startInfinite() {
+  var pool = WORDS_ALL.slice();
+  shuffleArr(pool);
+  sessionWords  = pool.slice(0, 100);
+  index         = 0;
+  reviewWords   = [];
+  isReviewRound = false;
+  streak        = 0;
+  document.getElementById('streakNum').textContent = 0;
+  document.getElementById('app').classList.remove('hidden');
+  showWord();
+}
+
+// ── Word display ───────────────────────────────────────
+function fitWord() {
+  var el        = document.getElementById('word');
+  var container = el.parentElement;
+  var maxWidth  = container.clientWidth - 40;
+  var fontSize  = 2.4;
+  el.style.fontSize = fontSize + 'rem';
+  while (el.scrollWidth > maxWidth && fontSize > 1.0) {
+    fontSize -= 0.1;
+    el.style.fontSize = fontSize + 'rem';
+  }
+}
+
+function showWord() {
+  var w      = sessionWords[index];
+  var wordEl = document.getElementById('word');
+  wordEl.textContent = w.en;
+  fitWord();
+  wordEl.style.opacity = '0';
+  requestAnimationFrame(function() {
+    wordEl.style.transition = 'opacity 0.2s';
+    wordEl.style.opacity    = '1';
+  });
+
+  var input = document.getElementById('answer');
+  input.value     = '';
+  input.className = 'answer-input';
+  document.getElementById('result').innerHTML = '';
+
+  answered = false;
+  updateNextBtn();
+  updateProgress();
+  updateSessionInfo();
+  setTimeout(function() { input.focus(); }, 50);
+}
+
+function normalize(t) {
+  return t.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+// ── Submit / GiveUp ────────────────────────────────────
+function submitAnswer() {
+  if (answered) return;
+  var input    = document.getElementById('answer');
+  var val      = normalize(input.value);
+  if (!val) return;
+
+  var w        = sessionWords[index];
+  var corrects = w.id.map(normalize);
+  var isCorrect = corrects.indexOf(val) !== -1;
+
+  if (isCorrect) {
+    streak++;
+    statCorrect++;
+    input.className = 'answer-input correct';
+    showResult('correct', '&#10003; Benar!', w);
+  } else {
+    streak = 0;
+    statWrong++;
+    input.className = 'answer-input wrong';
+    input.classList.add('shake');
+    setTimeout(function() { input.classList.remove('shake'); }, 300);
+    showResult('wrong', '&#10007; Salah!', w);
+    if (mode === 1 && !isReviewRound) {
+      reviewWords.push(w);
+      statMissed.push({en: w.en, id: w.id, type: 'wrong'});
+      updateReviewBadge();
+    }
+  }
+
+  document.getElementById('streakNum').textContent = streak;
+  answered = true;
+  updateNextBtn();
+  handleAutoNext();
+}
+
+function giveUp() {
+  if (answered) return;
+  streak = 0;
+  document.getElementById('streakNum').textContent = 0;
+  document.getElementById('answer').className = 'answer-input giveup';
+  var w = sessionWords[index];
+  statGiveup++;
+  if (mode === 1 && !isReviewRound) {
+    reviewWords.push(w);
+    statMissed.push({en: w.en, id: w.id, type: 'giveup'});
+    updateReviewBadge();
+  }
+  showResult('giveup', '&#128533; Menyerah', w);
+  answered = true;
+  updateNextBtn();
+  handleAutoNext();
+}
+
+function showResult(type, label, w) {
+  var colors = { correct: 'result-correct', wrong: 'result-wrong', giveup: 'result-giveup' };
+  document.getElementById('result').innerHTML =
+    '<div class="result-status ' + colors[type] + ' pop">' + label + '</div>' +
+    '<div class="result-answer">Jawaban: <strong>' + w.id.join(', ') + '</strong></div>';
+}
+
+// ── Next word ──────────────────────────────────────────
+function nextWord() {
+  if (!answered) return;
+  clearTimers();
+  index++;
+
+  if (index >= sessionWords.length) {
+    if (mode === 1) {
+      if (!isReviewRound && reviewWords.length > 0) {
+        showReviewTransition();
+        return;
+      }
+      // Sesi selesai — tandai done & buka sesi berikutnya
+      finishSession();
+      return;
+    } else {
+      // Infinite — generate ulang
+      startInfinite();
+      return;
+    }
+  }
+  showWord();
+}
+
+function finishSession() {
+  // Tandai sesi sebagai done
+  if (doneSessions.indexOf(activeSession) === -1) {
+    doneSessions.push(activeSession);
+  }
+  // Buka sesi berikutnya kalau belum terbuka
+  if (activeSession + 1 >= unlockedCount && activeSession + 1 < totalSessions) {
+    unlockedCount = activeSession + 2;
+  }
+  saveState();
+  // Tampilkan modal evaluasi
+  showEvalModal();
+}
+
+function showEvalModal() {
+  var elapsed   = Math.floor((Date.now() - sessionStart) / 1000);
+  var mins      = Math.floor(elapsed / 60);
+  var secs      = elapsed % 60;
+  var timeStr   = mins + 'm ' + (secs < 10 ? '0' : '') + secs + 's';
+  var total     = statCorrect + statWrong + statGiveup;
+  var pct       = total > 0 ? Math.round(statCorrect / total * 100) : 0;
+
+  document.getElementById('evalTime').textContent    = timeStr;
+  document.getElementById('evalCorrect').textContent = statCorrect;
+  document.getElementById('evalWrong').textContent   = statWrong;
+  document.getElementById('evalGiveup').textContent  = statGiveup;
+  document.getElementById('evalPct').textContent     = pct + '%';
+
+  // Isi daftar kata yang missed
+  var listEl = document.getElementById('evalMissedList');
+  listEl.innerHTML = '';
+  if (statMissed.length === 0) {
+    listEl.innerHTML = '<div class="eval-missed-empty">&#127881; Sempurna! Semua kata dijawab benar.</div>';
+  } else {
+    statMissed.forEach(function(item) {
+      var tag = item.type === 'giveup'
+        ? '<span class="eval-tag eval-tag-giveup">menyerah</span>'
+        : '<span class="eval-tag eval-tag-wrong">salah</span>';
+      var row = document.createElement('div');
+      row.className = 'eval-missed-row';
+      row.innerHTML =
+        '<div class="eval-missed-en">' + item.en + tag + '</div>' +
+        '<div class="eval-missed-id">' + item.id.join(', ') + '</div>';
+      listEl.appendChild(row);
+    });
+  }
+
+  // Update toggle label
+  document.getElementById('evalMissedToggleLabel').textContent =
+    statMissed.length > 0
+      ? 'Lihat ' + statMissed.length + ' kata yang tidak dijawab benar'
+      : 'Semua kata dijawab benar';
+
+  // Reset accordion
+  document.getElementById('evalMissedBody').classList.add('hidden');
+
+    // Set nomor sesi dan trophy
+  document.getElementById('evalSessionNum').textContent = activeSession + 1;
+  var trophy = pct === 100 ? '&#127942;' : pct >= 70 ? '&#127941;' : '&#128218;';
+  document.getElementById('evalTrophy').innerHTML = trophy;
+
+  document.getElementById('evalModal').classList.remove('hidden');
+}
+
+function toggleEvalMissed() {
+  var body    = document.getElementById('evalMissedBody');
+  if (body.classList.contains('hidden')) {
+    body.classList.remove('hidden');
+  } else {
+    body.classList.add('hidden');
+  }
+}
+
+function closeEvalModal() {
+  document.getElementById('evalModal').classList.add('hidden');
+  document.getElementById('app').classList.add('hidden');
+  showSessionPicker();
+}
+
+// ── Review ─────────────────────────────────────────────
+function updateReviewBadge() {
+  var badge = document.getElementById('reviewBadge');
+  var count = document.getElementById('reviewCount');
+  if (mode === 1 && !isReviewRound && reviewWords.length > 0) {
+    badge.classList.remove('hidden');
+    count.textContent = reviewWords.length;
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function showReviewTransition() {
+  clearTimers();
+  document.getElementById('reviewModalCount').textContent = reviewWords.length;
+  document.getElementById('reviewModal').classList.remove('hidden');
+}
+
+function beginReview() {
+  document.getElementById('reviewModal').classList.add('hidden');
+  isReviewRound = true;
+  sessionWords  = reviewWords.slice();
+  shuffleArr(sessionWords);
+  reviewWords   = [];
+  index         = 0;
+  updateReviewBadge();
+  showWord();
+}
+
+function skipReview() {
+  document.getElementById('reviewModal').classList.add('hidden');
+  reviewWords = [];
+  finishSession();
+}
+
+// ── Auto next ──────────────────────────────────────────
+function handleAutoNext() {
+  clearTimers();
+  if (!document.getElementById('autoNextToggle').checked) return;
+  var fill = document.getElementById('countdownFill');
+  fill.style.transition = 'none';
+  fill.style.width      = '100%';
+  setTimeout(function() {
+    fill.style.transition = 'width 5s linear';
+    fill.style.width      = '0%';
+  }, 30);
+  autoNextTimer = setTimeout(function() { nextWord(); }, 5000);
+}
+
+function clearTimers() { clearTimeout(autoNextTimer); }
+
+function onAutoToggle() {
+  var on = document.getElementById('autoNextToggle').checked;
+  document.getElementById('countdownWrap').classList.toggle('hidden', !on);
+  if (!on) clearTimers();
+}
+
+// ── UI helpers ─────────────────────────────────────────
+function updateNextBtn() {
+  document.getElementById('nextBtn').disabled = !answered;
+}
+
+function updateProgress() {
+  document.getElementById('progressBar').style.width =
+    ((index + 1) / sessionWords.length * 100) + '%';
+}
+
+function updateSessionInfo() {
+  if (mode === 1) {
+    var prefix = isReviewRound
+      ? '&#128260; Review'
+      : 'Sesi ' + (activeSession + 1) + ' / ' + totalSessions;
+    document.getElementById('sessionInfo').innerHTML =
+      prefix + ' &bull; ' + (index + 1) + ' / ' + sessionWords.length;
+  } else {
+    document.getElementById('sessionInfo').textContent =
+      'Kata ' + (index + 1) + ' / 100';
+  }
+}
+
+function showHint() {
+  if (answered) return;
+  var w     = sessionWords[index];
+  var first = w.id[0];
+  var hint  = first[0] + first.slice(1).split('').map(function(c) {
+    return c === ' ' ? ' ' : '_';
+  }).join('');
+  document.getElementById('result').innerHTML =
+    '<div class="result-answer">&#128161; Hint: <strong>' + hint + '</strong></div>';
+}
+
+// ── Reset ──────────────────────────────────────────────
+function resetProgress() {
+  document.getElementById('modalStatWords').textContent   = doneSessions.length * SESSION_SIZE;
+  document.getElementById('modalStatSession').textContent = doneSessions.length;
+  document.getElementById('resetModal').classList.remove('hidden');
+}
+
+function closeResetModal() {
+  document.getElementById('resetModal').classList.add('hidden');
+}
+
+function confirmReset() {
+  localStorage.removeItem(LS_MAP);
+  localStorage.removeItem(LS_DONE);
+  localStorage.removeItem(LS_UNLOCK);
+
+  buildSessionMap();   // acak ulang pemetaan sesi
+  streak        = 0;
+  reviewWords   = [];
+  isReviewRound = false;
+
+  closeResetModal();
+  document.getElementById('streakNum').textContent = 0;
+
+  // Refresh UI
+  document.getElementById('statDone').textContent    = 0;
+  document.getElementById('statSession').textContent = '1 / ' + totalSessions;
+  renderSessionGrid();
+}
+
+// ── Keyboard ───────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  var input = document.getElementById('answer');
+  if (!input) return;
+  if (document.getElementById('app').classList.contains('hidden')) return;
+
+  if (e.key === 'Enter') {
+    if (!answered) submitAnswer();
+    else nextWord();
+    return;
+  }
+  if ((e.key === 'Tab' || e.key === 'ArrowRight') && answered) {
+    e.preventDefault();
+    nextWord();
+    return;
+  }
+  if (document.activeElement !== input && e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+    input.focus();
+  }
+});
+
+// ── Shuffle ────────────────────────────────────────────
+function shuffleArr(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j   = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+}
+
+</script>
+
+</body>
+</html>
