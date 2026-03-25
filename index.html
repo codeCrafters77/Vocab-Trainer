@@ -299,6 +299,50 @@
     .btn-confirm-reset { background: var(--wrong); color: white; border: none; }
     .btn-confirm-reset:hover { background: #ff6b87; transform: translateY(-1px); }
 
+    /* Review Mode Card */
+    .review-mode-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface2);
+      border: 1px solid rgba(247,151,30,0.3);
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 0;
+      gap: 12px;
+    }
+    .review-mode-card:hover {
+      border-color: var(--accent4);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(247,151,30,0.12);
+    }
+    .review-mode-card.empty {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    .review-mode-left { display: flex; align-items: center; gap: 12px; }
+    .review-mode-icon { font-size: 1.4rem; }
+    .review-mode-title { font-size: 0.88rem; font-weight: 700; color: var(--accent4); }
+    .review-mode-desc { font-size: 0.65rem; color: var(--muted); font-family: "Space Mono", monospace; margin-top: 2px; }
+    .review-mode-right { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+    .review-mode-count { font-family: "Space Mono", monospace; font-size: 1.4rem; font-weight: 700; color: var(--accent4); line-height: 1; }
+    .review-mode-count-label { font-size: 0.58rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-family: "Space Mono", monospace; }
+    .btn-clear-review {
+      background: none;
+      border: 1px solid rgba(255,77,109,0.3);
+      color: var(--wrong);
+      border-radius: 6px;
+      padding: 3px 7px;
+      font-size: 0.65rem;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: all 0.15s;
+    }
+    .btn-clear-review:hover { background: rgba(255,77,109,0.1); border-color: var(--wrong); }
+
     /* Session picker */
     #sessionPicker { padding: 0 24px 24px; }
     .session-picker-header {
@@ -545,7 +589,21 @@
         <div class="session-picker-progress"><span id="spDone">0</span> / <span id="spTotal">0</span> selesai</div>
       </div>
       <div class="session-grid" id="sessionGrid"></div>
-      <button class="btn btn-reset" onclick="resetProgress()" style="width:100%;">&#128465; Reset Progress</button>
+      <div class="review-mode-card" id="reviewModeCard" onclick="startGlobalReview()">
+        <div class="review-mode-left">
+          <div class="review-mode-icon">&#128260;</div>
+          <div>
+            <div class="review-mode-title">Review Mode</div>
+            <div class="review-mode-desc">Latih ulang kata yang pernah salah atau menyerah</div>
+          </div>
+        </div>
+        <div class="review-mode-right">
+          <div class="review-mode-count" id="reviewModeCount">0</div>
+          <div class="review-mode-count-label">kata</div>
+          <button class="btn-clear-review" onclick="event.stopPropagation(); clearGlobalReview();" id="clearReviewBtn" title="Bersihkan review">&#10006;</button>
+        </div>
+      </div>
+      <button class="btn btn-reset" onclick="resetProgress()" style="width:100%;margin-top:8px;">&#128465; Reset Progress</button>
     </div>
 
     <div id="app" class="hidden">
@@ -553,7 +611,7 @@
         <div class="top-bar">
           <div style="display:flex;align-items:center;gap:8px;">
             <div class="session-badge" id="sessionInfo">Sesi 1</div>
-            <div id="reviewBadge" class="review-badge hidden">&#128260; <span id="reviewCount">0</span> diulang</div>
+            <div id="reviewBadge" class="review-badge hidden">&#128260; <span id="reviewCount">0</span> gagal</div>
             <div class="streak-wrap">
               <span>&#128293;</span>
               <span class="streak-num" id="streakNum">0</span>
@@ -644,6 +702,19 @@
   </div>
 </div>
 
+<!-- CLEAR REVIEW MODAL -->
+<div id="clearReviewModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-icon">&#128260;</div>
+    <div class="modal-title">Bersihkan Review Mode?</div>
+    <div class="modal-desc">Semua kata di Review Mode akan dihapus. Lakukan ini jika kamu sudah menguasai kata-kata tersebut.</div>
+    <div class="modal-btn-row">
+      <button class="btn btn-cancel" onclick="closeClearReviewModal()">Batal</button>
+      <button class="btn btn-confirm-reset" onclick="confirmClearReview()">Ya, Bersihkan</button>
+    </div>
+  </div>
+</div>
+
 <!-- REVIEW TRANSITION MODAL -->
 <div id="reviewModal" class="modal-overlay hidden">
   <div class="review-modal-box">
@@ -708,7 +779,10 @@ var sessionStart = 0;  // timestamp mulai (ms)
 var LS_MAP     = 'vt_sessionMap';   // { "0": [idx,idx,...], "1": [...], ... }
 var LS_DONE    = 'vt_doneSessions'; // [0, 1, 3, ...]  sesi yang SUDAH selesai
 var LS_UNLOCK  = 'vt_unlocked';     // jumlah sesi yang sudah terbuka
+var LS_REVIEW  = 'vt_globalReview'; // [{en,id},...] kata bandel lintas sesi
 var LS_INF_STR = 'vt_streak';
+
+var globalReview = []; // kata yang pernah salah/giveup, disimpan permanen
 
 var SESSION_SIZE = 100;
 var totalSessions = Math.ceil(WORDS_ALL.length / SESSION_SIZE);
@@ -728,6 +802,7 @@ function loadState() {
   } else {
     buildSessionMap();
   }
+  globalReview = JSON.parse(localStorage.getItem(LS_REVIEW) || '[]');
 }
 
 function buildSessionMap() {
@@ -749,6 +824,10 @@ function saveState() {
   localStorage.setItem(LS_MAP,    JSON.stringify(sessionMap));
   localStorage.setItem(LS_DONE,   JSON.stringify(doneSessions));
   localStorage.setItem(LS_UNLOCK, unlockedCount);
+}
+
+function saveReview() {
+  localStorage.setItem(LS_REVIEW, JSON.stringify(globalReview));
 }
 
 // ── Boot ───────────────────────────────────────────────
@@ -791,6 +870,16 @@ function showSessionPicker() {
 function renderSessionGrid() {
   document.getElementById('spDone').textContent  = doneSessions.length;
   document.getElementById('spTotal').textContent = totalSessions;
+
+  // Update review mode card
+  var reviewCount = globalReview.length;
+  document.getElementById('reviewModeCount').textContent = reviewCount;
+  var card = document.getElementById('reviewModeCard');
+  if (reviewCount === 0) {
+    card.classList.add('empty');
+  } else {
+    card.classList.remove('empty');
+  }
 
   var grid = document.getElementById('sessionGrid');
   grid.innerHTML = '';
@@ -929,6 +1018,7 @@ function submitAnswer() {
       reviewWords.push(w);
       statMissed.push({en: w.en, id: w.id, type: 'wrong'});
       updateReviewBadge();
+      addToGlobalReview(w);
     }
   }
 
@@ -949,6 +1039,7 @@ function giveUp() {
     reviewWords.push(w);
     statMissed.push({en: w.en, id: w.id, type: 'giveup'});
     updateReviewBadge();
+    addToGlobalReview(w);
   }
   showResult('giveup', '&#128533; Menyerah', w);
   answered = true;
@@ -971,10 +1062,6 @@ function nextWord() {
 
   if (index >= sessionWords.length) {
     if (mode === 1) {
-      if (!isReviewRound && reviewWords.length > 0) {
-        showReviewTransition();
-        return;
-      }
       // Sesi selesai — tandai done & buka sesi berikutnya
       finishSession();
       return;
@@ -988,6 +1075,12 @@ function nextWord() {
 }
 
 function finishSession() {
+  if (isReviewRound) {
+    // Selesai global review — kembali ke session picker, tampilkan eval tanpa unlock
+    isReviewRound = false;
+    showEvalModal();
+    return;
+  }
   // Tandai sesi sebagai done
   if (doneSessions.indexOf(activeSession) === -1) {
     doneSessions.push(activeSession);
@@ -1066,6 +1159,50 @@ function closeEvalModal() {
   showSessionPicker();
 }
 
+// ── Global Review ─────────────────────────────────────────────
+function addToGlobalReview(w) {
+  // Hindari duplikat
+  for (var i = 0; i < globalReview.length; i++) {
+    if (globalReview[i].en === w.en) return;
+  }
+  globalReview.push({en: w.en, id: w.id});
+  saveReview();
+}
+
+function startGlobalReview() {
+  if (globalReview.length === 0) return;
+  isReviewRound = true;
+  sessionWords  = globalReview.slice();
+  shuffleArr(sessionWords);
+  index         = 0;
+  statCorrect   = 0;
+  statWrong     = 0;
+  statGiveup    = 0;
+  statMissed    = [];
+  sessionStart  = Date.now();
+  streak        = 0;
+  document.getElementById('streakNum').textContent = 0;
+  document.getElementById('reviewBadge').classList.add('hidden');
+  document.getElementById('sessionPicker').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  showWord();
+}
+
+function clearGlobalReview() {
+  document.getElementById('clearReviewModal').classList.remove('hidden');
+}
+
+function confirmClearReview() {
+  globalReview = [];
+  saveReview();
+  document.getElementById('clearReviewModal').classList.add('hidden');
+  renderSessionGrid(); // refresh card review
+}
+
+function closeClearReviewModal() {
+  document.getElementById('clearReviewModal').classList.add('hidden');
+}
+
 // ── Review ─────────────────────────────────────────────
 function updateReviewBadge() {
   var badge = document.getElementById('reviewBadge');
@@ -1136,7 +1273,7 @@ function updateProgress() {
 function updateSessionInfo() {
   if (mode === 1) {
     var prefix = isReviewRound
-      ? '&#128260; Review'
+      ? '&#128260; Review Mode'
       : 'Sesi ' + (activeSession + 1) + ' / ' + totalSessions;
     document.getElementById('sessionInfo').innerHTML =
       prefix + ' &bull; ' + (index + 1) + ' / ' + sessionWords.length;
@@ -1174,6 +1311,8 @@ function confirmReset() {
   localStorage.removeItem(LS_UNLOCK);
 
   buildSessionMap();   // acak ulang pemetaan sesi
+  globalReview  = [];
+  saveReview();
   streak        = 0;
   reviewWords   = [];
   isReviewRound = false;
