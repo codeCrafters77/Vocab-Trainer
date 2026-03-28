@@ -357,14 +357,8 @@
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 8px;
-      max-height: 340px;
-      overflow-y: auto;
-      padding-right: 2px;
       margin-bottom: 16px;
     }
-    .session-grid::-webkit-scrollbar { width: 4px; }
-    .session-grid::-webkit-scrollbar-track { background: var(--surface2); border-radius: 2px; }
-    .session-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
     .sess-btn {
       aspect-ratio: 1;
       border-radius: 10px;
@@ -541,6 +535,73 @@
     .eval-footer { padding: 0 24px 24px; }
     .btn-eval-done { width: 100%; background: var(--accent); color: white; border: none; }
     .btn-eval-done:hover { background: #7c73ff; transform: translateY(-1px); }
+
+    /* ── AI Result ── */
+    .ai-loading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: "Space Mono", monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      padding: 8px 0;
+    }
+    .ai-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .ai-feedback {
+      font-size: 0.78rem;
+      color: var(--muted);
+      font-family: "Space Mono", monospace;
+      line-height: 1.5;
+      padding: 6px 0 2px;
+    }
+
+    .ai-examples {
+      margin-top: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .ai-examples-label {
+      font-family: "Space Mono", monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 8px 12px 4px;
+    }
+    .ai-example-row {
+      padding: 6px 12px 8px;
+      border-top: 1px solid var(--border);
+    }
+    .ai-example-row:first-of-type { border-top: none; }
+    .ai-example-en {
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .ai-example-id {
+      font-family: "Space Mono", monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .ai-error {
+      font-family: "Space Mono", monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      padding: 4px 0;
+    }
   </style>
 </head>
 <body>
@@ -763,6 +824,8 @@ var sessionWords  = [];   // kata di sesi aktif
 var index         = 0;
 var answered      = false;
 var autoNextTimer = null;
+var GEMINI_ENDPOINT = 'https://tracker-eight-khaki.vercel.app/api/gemini';
+var isAiLoading = false;
 var streak        = 0;
 var reviewWords   = [];
 var isReviewRound = false;
@@ -993,27 +1056,56 @@ function normalize(t) {
 
 // ── Submit / GiveUp ────────────────────────────────────
 function submitAnswer() {
-  if (answered) return;
-  var input    = document.getElementById('answer');
-  var val      = normalize(input.value);
+  if (answered || isAiLoading) return;
+  var input = document.getElementById('answer');
+  var val   = normalize(input.value);
   if (!val) return;
 
-  var w        = sessionWords[index];
-  var corrects = w.id.map(normalize);
-  var isCorrect = corrects.indexOf(val) !== -1;
+  var w = sessionWords[index];
 
+  // Tampilkan loading state dulu
+  isAiLoading = true;
+  input.disabled = true;
+  document.getElementById('result').innerHTML =
+    '<div class="ai-loading"><div class="ai-spinner"></div><span>Menilai jawaban...</span></div>';
+
+  // Panggil Gemini
+  fetch(GEMINI_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ word: w.en, userAnswer: val, correctAnswers: w.id })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    isAiLoading = false;
+    input.disabled = false;
+    var isCorrect = data.correct === true;
+    finishSubmit(isCorrect, val, w, data.feedback || null, data.examples || null);
+  })
+  .catch(function() {
+    // Fallback ke exact match kalau Gemini error
+    isAiLoading = false;
+    input.disabled = false;
+    var corrects  = w.id.map(normalize);
+    var isCorrect = corrects.indexOf(val) !== -1;
+    finishSubmit(isCorrect, val, w, null, null);
+  });
+}
+
+function finishSubmit(isCorrect, val, w, aiFeedback, aiExamples) {
   if (isCorrect) {
     streak++;
     statCorrect++;
-    input.className = 'answer-input correct';
-    showResult('correct', '&#10003; Benar!', w);
+    document.getElementById('answer').className = 'answer-input correct';
+    showResult('correct', '&#10003; Benar!', w, aiFeedback, aiExamples);
   } else {
     streak = 0;
     statWrong++;
+    var input = document.getElementById('answer');
     input.className = 'answer-input wrong';
     input.classList.add('shake');
     setTimeout(function() { input.classList.remove('shake'); }, 300);
-    showResult('wrong', '&#10007; Salah!', w);
+    showResult('wrong', '&#10007; Salah!', w, aiFeedback, aiExamples);
     if (mode === 1 && !isReviewRound) {
       reviewWords.push(w);
       statMissed.push({en: w.en, id: w.id, type: 'wrong'});
@@ -1021,7 +1113,6 @@ function submitAnswer() {
       addToGlobalReview(w);
     }
   }
-
   document.getElementById('streakNum').textContent = streak;
   answered = true;
   updateNextBtn();
@@ -1041,17 +1132,33 @@ function giveUp() {
     updateReviewBadge();
     addToGlobalReview(w);
   }
-  showResult('giveup', '&#128533; Menyerah', w);
+  showResult('giveup', '&#128533; Menyerah', w, null, null);
   answered = true;
   updateNextBtn();
   handleAutoNext();
 }
 
-function showResult(type, label, w) {
+function showResult(type, label, w, aiFeedback, aiExamples) {
   var colors = { correct: 'result-correct', wrong: 'result-wrong', giveup: 'result-giveup' };
-  document.getElementById('result').innerHTML =
-    '<div class="result-status ' + colors[type] + ' pop">' + label + '</div>' +
-    '<div class="result-answer">Jawaban: <strong>' + w.id.join(', ') + '</strong></div>';
+  var html = '<div class="result-status ' + colors[type] + ' pop">' + label + '</div>';
+  html += '<div class="result-answer">Jawaban: <strong>' + w.id.join(', ') + '</strong></div>';
+
+  if (aiFeedback) {
+    html += '<div class="ai-feedback">' + aiFeedback + '</div>';
+  }
+
+  if (aiExamples && aiExamples.length > 0) {
+    html += '<div class="ai-examples"><div class="ai-examples-label">Contoh Penggunaan</div>';
+    aiExamples.forEach(function(ex) {
+      html += '<div class="ai-example-row">';
+      html += '<div class="ai-example-en">' + ex.en + '</div>';
+      html += '<div class="ai-example-id">' + ex.id + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  document.getElementById('result').innerHTML = html;
 }
 
 // ── Next word ──────────────────────────────────────────
@@ -1333,8 +1440,8 @@ document.addEventListener('keydown', function(e) {
   if (document.getElementById('app').classList.contains('hidden')) return;
 
   if (e.key === 'Enter') {
-    if (!answered) submitAnswer();
-    else nextWord();
+    if (!answered && !isAiLoading) submitAnswer();
+    else if (answered && !isAiLoading) nextWord();
     return;
   }
   if ((e.key === 'Tab' || e.key === 'ArrowRight') && answered) {
