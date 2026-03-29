@@ -71,6 +71,27 @@
       transition: all 0.2s;
     }
     .btn-back:hover { color: var(--text); border-color: var(--muted); }
+    .ai-toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: "Space Mono", monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      user-select: none;
+    }
+    .ai-toggle-wrap .toggle-slider { cursor: pointer; }
+    .ai-badge {
+      font-family: "Space Mono", monospace;
+      font-size: 0.6rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    .ai-badge.on  { background: rgba(108,99,255,0.15); color: var(--accent); border: 1px solid rgba(108,99,255,0.3); }
+    .ai-badge.off { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
     .mode-title {
       font-size: 0.7rem;
       letter-spacing: 0.15em;
@@ -609,7 +630,16 @@
   <div class="card">
     <div class="header">
       <div class="logo">vocab<span>.</span>trainer</div>
-      <button id="backBtn" class="btn-back hidden" onclick="goBack()">&#8592; kembali</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label class="ai-toggle-wrap" title="Aktifkan/matikan penilaian AI">
+          <span class="ai-badge on" id="aiBadge">AI</span>
+          <div class="toggle" style="width:32px;height:18px;">
+            <input type="checkbox" id="aiToggle" checked onchange="onAiToggle()" />
+            <div class="toggle-slider" style="border-radius:18px;"></div>
+          </div>
+        </label>
+        <button id="backBtn" class="btn-back hidden" onclick="goBack()">&#8592; kembali</button>
+      </div>
     </div>
 
     <div id="modeSelect" style="padding:24px;">
@@ -826,6 +856,19 @@ var answered      = false;
 var autoNextTimer = null;
 var GEMINI_ENDPOINT = 'https://tracker-eight-khaki.vercel.app/api/gemini';
 var isAiLoading = false;
+var useAI = true; // toggle AI on/off
+
+function onAiToggle() {
+  useAI = document.getElementById('aiToggle').checked;
+  var badge = document.getElementById('aiBadge');
+  if (useAI) {
+    badge.className = 'ai-badge on';
+    badge.textContent = 'AI';
+  } else {
+    badge.className = 'ai-badge off';
+    badge.textContent = 'AI';
+  }
+}
 var streak        = 0;
 var reviewWords   = [];
 var isReviewRound = false;
@@ -1062,6 +1105,14 @@ function submitAnswer() {
   if (!val) return;
 
   var w = sessionWords[index];
+
+  // Kalau AI dimatikan, langsung exact match
+  if (!useAI) {
+    var corrects  = w.id.map(normalize);
+    var isCorrect = corrects.indexOf(val) !== -1;
+    finishSubmit(isCorrect, val, w, null, null);
+    return;
+  }
 
   // Tampilkan loading state dulu
   isAiLoading = true;
